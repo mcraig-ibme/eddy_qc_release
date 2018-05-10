@@ -1,0 +1,4 @@
+nibabel==2.* 
+scipy
+matplotlib
+seaborn

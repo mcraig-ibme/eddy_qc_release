@@ -1,0 +1,52 @@
+#!/usr/bin/env fslpython
+import argparse
+import sys
+
+
+#=========================================================================================
+# FSL QUAD (QUality Assessment for DMRI)
+# Matteo Bastiani
+# 01-06-2017, FMRIB, Oxford
+#=========================================================================================
+def usage():
+    print("eddy_quad: QUality Assessment for DMRI")
+    print("   ")
+    print("Usage: eddy_quad <eddyBase> -idx <eddyIndex> -par <eddyParams> -m <mask> -b <bvals> [options]")
+    print("   ")
+    print("   ")
+    print("Compulsory arguments:")
+    print("       eddyBase             Basename (including path) specified when running EDDY")
+    print("       -idx, --eddyIdx      File containing indices for all volumes into acquisition parameters")
+    print("       -par, --eddyParams   File containing acquisition parameters")
+    print("       -m, --mask           Binary mask file")
+    print("       -b, --bvals          b-values file")
+    print("   ")
+    print("Optional arguments:")
+    print("       -g, --bvecs          b-vectors file - only used when <eddyBase>.eddy_residuals file is present")
+    print("       -o, --output-dir     Output directory - default = '<eddyBase>.qc' ")
+    print("       -f, --field          TOPUP estimated field (in Hz)")
+    print("       -s, --slspec         Text file specifying slice/group acquisition")
+    print("       -v, --verbose        Display debug messages")
+    print("   ")
+    
+
+ 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser('Single subject QC for dMRI data', add_help=False)
+    parser.add_argument('eddyBase', help='EDDY output basename')
+    parser.add_argument('-idx', '--eddyIdx', required=True, help='EDDY index file')
+    parser.add_argument('-par', '--eddyParams', required=True, help='EDDY acquisition parameter file')
+    parser.add_argument('-m', '--mask', required=True, help='Binary brain mask')
+    parser.add_argument('-b', '--bvals', required=True, help='b-values file')
+    if len(sys.argv) < 10:
+        usage()
+        sys.exit(1)
+    parser.add_argument('-g', '--bvecs', required=False, help='b-vectors file')
+    parser.add_argument('-o', '--output-dir', required=False, help='Output directory')
+    parser.add_argument('-f', '--field', required=False, help='TOPUP estimated field (in Hz)')
+    parser.add_argument('-s', '--slspec', required=False, help='Text file specifying slice/group acquisition')
+    parser.add_argument('-v', '--verbose', required=False, action='store_true', help='Display debug messages')
+    args = parser.parse_args()
+    from eddy_qc.QUAD.quad import main
+    main(args.eddyBase, args.eddyIdx, args.eddyParams, args.mask, args.bvals, args.bvecs, args.output_dir, args.field, args.slspec, args.verbose)
