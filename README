@@ -3,7 +3,7 @@ EDDY QC
 Matteo Bastiani, FMRIB
 August, 2017
 -------------------------------------------
-Automated tools based on FSL's eddy to perform quality assessment on diffusion mri (dMRI) datasets.
+Automated tools based on FSL's eddy to perform quality assessment on diffusion MRI (dMRI) datasets.
 
 
 User guide and references
