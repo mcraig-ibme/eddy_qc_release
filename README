@@ -6,17 +6,22 @@ August, 2017
 Automated tools based on FSL's eddy to perform quality assessment on diffusion mri (dMRI) datasets.
 
 
+User guide and references
+-------------------------
+If you use EDDY QC in your research, please make sure that you reference the articles listed here:
+https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/eddyqc
+
+
 Installation
 ------------
+EDDY QC requires FSL >= 5.0.10 to run.
+
 Once the library has been downloaded, run:
 cd /path-to-lib/eddy_qc
 fslpython setup.py install (sudo if necessary)
 
 Add to PATH:
 /usr/local/fsl/fslpython/envs/fslpython/bin
-
-Extended user guide can be found:
-https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/eddyqc
 
 
 -------------------------------------------
