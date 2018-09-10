@@ -18,10 +18,10 @@ EDDY QC requires FSL >= 5.0.10 to run.
 
 Once the library has been downloaded, run:
 cd /path-to-lib/eddy_qc
-fslpython setup.py install (sudo if necessary)
+${FSLDIR}/fslpython setup.py install (sudo if necessary)
 
 Add to PATH:
-/usr/local/fsl/fslpython/envs/fslpython/bin
+${FSLDIR}/fslpython/envs/fslpython/bin
 
 
 -------------------------------------------

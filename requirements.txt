@@ -2,3 +2,4 @@ nibabel==2.*
 scipy
 matplotlib
 seaborn
+PyPDF2
