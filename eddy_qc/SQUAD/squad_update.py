@@ -80,9 +80,15 @@ def main(db, sList, grp, grpDb):
             # Get colormap indices based on the level of outlier
             mot_colour_idx = (np.clip(np.floor(((sData['qc_mot_abs'], sData['qc_mot_rel'])-mot_avg)/mot_std),0,2)).astype(int)
             par_colour_idx = (np.clip(np.floor(np.abs((sData['qc_params_avg'][0:6]-par_avg[0:6])/par_std[0:6])),0,2)).astype(int)
-            s2v_par_colour_idx = (np.clip(np.floor((sData['qc_s2v_params_avg_std']-s2v_par_avg)/s2v_par_std),0,2)).astype(int)
+            if sData['qc_s2v_params_flag']:
+                s2v_par_colour_idx = (np.clip(np.floor((sData['qc_s2v_params_avg_std']-s2v_par_avg)/s2v_par_std),0,2)).astype(int)
+            else:
+                s2v_par_colour_idx = np.array([0, 0])
             ec_colour_idx = (np.clip(np.floor(((sData['qc_params_avg'][6:9]-par_avg[6:9])/par_std[6:9])),0,2)).astype(int)
-            susc_colour_idx = (np.clip(np.floor((sData['qc_vox_displ_std']-susc_avg)/susc_std),0,2)).astype(int)
+            if sData['qc_field_flag']:
+                susc_colour_idx = (np.clip(np.floor((sData['qc_vox_displ_std']-susc_avg)/susc_std),0,2)).astype(int)
+            else:
+                susc_colour_idx = np.array([0, 0])
 
             b_db = (np.array(db['data_unique_bvals'])).reshape(-1,1)
             b_sub = (np.array(sData['data_unique_bvals'])).reshape(-1,1)
@@ -91,14 +97,16 @@ def main(db, sList, grp, grpDb):
             pe_sub = np.reshape(np.atleast_2d(sData['data_eddy_para']), (-1,4))[:,0:3]
             common_pe = np.array(np.all((pe_db[:,None,:]==pe_sub[None,:,:]),axis=-1).nonzero()).T
             
-            ol_colour_idx = (3*np.ones(1+sData['data_no_shells']+sData['data_no_PE_dirs'])).astype(int)       
-            ol_colour_idx[0] = (np.clip(np.floor((sData['qc_outliers_tot']-ol_avg[0])/ol_std[0]),0,2)).astype(int)    
-            ol_colour_idx[1:][(common_b[:,1])] = (np.clip(np.floor((np.array(sData['qc_outliers_b'])[common_b[:,1]]-ol_avg[1+common_b[:,0]])/ol_std[1+common_b[:,0]]),0,2)).astype(int)    
-            ol_colour_idx[1+sData['data_no_shells']:][(common_pe[:,1])] = (np.clip(np.floor((np.array(sData['qc_outliers_pe'])[common_pe[:,1]]-ol_avg[1+sData['data_no_shells']+common_pe[:,0]])/ol_std[1+sData['data_no_shells']+common_pe[:,0]]),0,2)).astype(int)    
-            
-            cnr_colour_idx = (3*np.ones(1+sData['data_no_shells'])).astype(int)       
-            cnr_colour_idx[0] = (np.abs(np.clip(np.ceil((sData['qc_cnr_avg'][0]-cnr_avg[0])/cnr_std[0]),-2,0))).astype(int)    
-            cnr_colour_idx[1:][(common_b[:,1])] = (np.abs(np.clip(np.ceil((np.array(sData['qc_cnr_avg'])[1+common_b[:,1]]-cnr_avg[1+common_b[:,0]])/cnr_std[1+common_b[:,0]]),-2,0))).astype(int)    
+            ol_colour_idx = (3*np.ones(1+sData['data_no_shells']+sData['data_no_PE_dirs'])).astype(int)     
+            if sData['qc_ol_flag']:
+                ol_colour_idx[0] = (np.clip(np.floor((sData['qc_outliers_tot']-ol_avg[0])/ol_std[0]),0,2)).astype(int)    
+                ol_colour_idx[1:][(common_b[:,1])] = (np.clip(np.floor((np.array(sData['qc_outliers_b'])[common_b[:,1]]-ol_avg[1+common_b[:,0]])/ol_std[1+common_b[:,0]]),0,2)).astype(int)    
+                ol_colour_idx[1+sData['data_no_shells']:][(common_pe[:,1])] = (np.clip(np.floor((np.array(sData['qc_outliers_pe'])[common_pe[:,1]]-ol_avg[1+sData['data_no_shells']+common_pe[:,0]])/ol_std[1+sData['data_no_shells']+common_pe[:,0]]),0,2)).astype(int)    
+                
+            cnr_colour_idx = (3*np.ones(1+sData['data_no_shells'])).astype(int)
+            if sData['qc_cnr_flag']:
+                cnr_colour_idx[0] = (np.abs(np.clip(np.ceil((sData['qc_cnr_avg'][0]-cnr_avg[0])/cnr_std[0]),-2,0))).astype(int)    
+                cnr_colour_idx[1:][(common_b[:,1])] = (np.abs(np.clip(np.ceil((np.array(sData['qc_cnr_avg'])[1+common_b[:,1]]-cnr_avg[1+common_b[:,0]])/cnr_std[1+common_b[:,0]]),-2,0))).astype(int)    
             
             # Fill eddy and data dictionaries for squad_tables function
             eddy = {

@@ -57,8 +57,13 @@ def main(pdf, db, grp, s_data):
     else:
         ax1_01 = plt.subplot2grid((3, 4), (0, 0), colspan=4)
     seaborn.barplot(x=np.arange(1, 1+db['data_no_subjects']), y=np.sum(db['data_protocol'], axis=1), color='blue', ax=ax1_01)
-    ax1_01.xaxis.set_major_locator(ticker.MultipleLocator(5))
-    ax1_01.xaxis.set_major_formatter(ticker.ScalarFormatter())
+    n_vols, counts = np.unique(np.sum(db['data_protocol'], axis=1), return_counts=True)
+    n_vols_mode = n_vols[np.argmax(counts)]
+    n_vols_ol = 1 + np.where(np.sum(db['data_protocol'], axis=1) != n_vols_mode )[0] 
+    ax1_01.set_xticks(n_vols_ol)
+    ax1_01.set_xticklabels(n_vols_ol)
+    ax1_01.tick_params(labelsize=6)
+    plt.setp(ax1_01.get_xticklabels(), rotation=90)
     ax1_01.set_ylim(bottom=0)
     ax1_01.set_xlabel("Subject")
     ax1_01.set_ylabel("No. acquired volumes")
