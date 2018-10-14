@@ -9,7 +9,7 @@ Installation
 ------------
 The eddy qc tools will be distributed with FSL.
 
-If you want to install the tools within your python environment, once the library has been downloaded, run:
+If you want to install the tools within your python (>= 3.5) environment, once the library has been downloaded, run:
 cd /path-to-lib/eddy_qc
 python setup.py install 
 
