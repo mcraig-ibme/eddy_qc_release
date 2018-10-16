@@ -48,12 +48,12 @@ def main(pdf, data, eddy):
     ax1_00.set_ylim(0, eddy['avg_cnr'][0]+2*eddy['std_cnr'][0])
     ax1_00.set_xticklabels([0])
 
-    ax2_00 = plt.subplot(gs00[0, 1:]);
+    ax2_00 = plt.subplot(gs00[0, 1:])
     sb = seaborn.barplot(x=np.arange(1, 1+data['unique_bvals'].size), y=eddy['avg_cnr'][1:], ci=3.0, ax=ax2_00)
     sb.errorbar(x=np.arange(0, data['unique_bvals'].size), y=eddy['avg_cnr'][1:], yerr=eddy['std_cnr'][1:], ecolor='black', fmt="none")
     ax2_00.set_xlabel("b-value [s/mm$^2$]")
     ax2_00.set_ylabel("CNR")
-    ax2_00.set_xticklabels([np.array_str(data['unique_bvals'][i]) for i in range(0, data['unique_bvals'].size) ])
+    ax2_00.set_xticklabels(data['unique_bvals'])
     
     if eddy['rssFlag']:
         gs01 = gridspec.GridSpecFromSubplotSpec(1+data['unique_bvals'].size, 1, subplot_spec=gs0[1])

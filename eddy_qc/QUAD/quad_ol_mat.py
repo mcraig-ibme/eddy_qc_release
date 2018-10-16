@@ -46,11 +46,11 @@ def main(pdf, data, eddy):
     ax1_00.set_ylabel("% outliers")
     ax1_00.set_xticklabels([np.array_str(data['eddy_para'][4*i:4*i+3]) for i in range(0, data['unique_pedirs'].size) ])
 
-    ax2_00 = plt.subplot(gs00[0, 1]);
+    ax2_00 = plt.subplot(gs00[0, 1])
     seaborn.barplot(x=np.arange(1, 1+data['unique_bvals'].size), y=eddy['b_ol'], ax=ax2_00)
     ax2_00.set_xlabel("b-value [s/mm$^2$]")
     ax2_00.set_ylabel("% outliers")
-    ax2_00.set_xticklabels([np.array_str(data['unique_bvals'][i]) for i in range(0, data['unique_bvals'].size) ])
+    ax2_00.set_xticklabels(data['unique_bvals'])
 
     # Bottom part: Z-stat matrix and %outlier plot with shared x axis
     gs01 = gridspec.GridSpecFromSubplotSpec(3, 2, subplot_spec=gs0[1], width_ratios=[1, 0.05], height_ratios=[0.1, 0.8, 0.05], hspace=0.0)
