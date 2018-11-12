@@ -305,11 +305,13 @@ def main(eddyBase, eddyIdx, eddyParams, mask, bvalsFile, bvecsFile, oDir, field,
         cnr = cnrImg.get_data()
         if np.count_nonzero(np.isnan(cnr)):
             print("!!!Warning!!! NaNs detected in the CNR maps!!!")
-        eddyOutput['avg_cnr'][0] = round(np.nanmean(cnr[:,:,:,0][data['mask'] != 0.0]), 2)
-        eddyOutput['std_cnr'][0] = round(np.nanstd(cnr[:,:,:,0][data['mask'] != 0.0]), 2)
+        finiteMask = (data['mask'] != 0) * np.isfinite(cnr[:,:,:,0])
+        eddyOutput['avg_cnr'][0] = round(np.nanmean(cnr[:,:,:,0][finiteMask]), 2)
+        eddyOutput['std_cnr'][0] = round(np.nanstd(cnr[:,:,:,0][finiteMask]), 2)
         for i in range(0,data['unique_bvals'].size):
-            eddyOutput['avg_cnr'][i+1] = round(np.nanmean(cnr[:,:,:,i+1][data['mask'] != 0.0]), 2)
-            eddyOutput['std_cnr'][i+1] = round(np.nanstd(cnr[:,:,:,i+1][data['mask'] != 0.0]), 2)
+            finiteMask = (data['mask'] != 0) * np.isfinite(cnr[:,:,:,i+1])
+            eddyOutput['avg_cnr'][i+1] = round(np.nanmean(cnr[:,:,:,i+1][finiteMask]), 2)
+            eddyOutput['std_cnr'][i+1] = round(np.nanstd(cnr[:,:,:,i+1][finiteMask]), 2)
 
     if os.path.isfile(rssFile):
         eddyOutput['rssFlag'] = True

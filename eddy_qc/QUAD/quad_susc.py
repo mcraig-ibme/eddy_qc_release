@@ -37,7 +37,7 @@ def main(pdf, data, eddy):
         # Compute average b=x volume
         # fslpy.select_dwi_vols(data=data['subj_id'], bvals=data['bvals_id'], output=data['qc_path'] + "/avg_b" + str(b), b=b, m=True)
         idxs_b0_pe=np.where(np.array(data['eddy_idxs'] == data['unique_pedirs'][i]) * np.array(data['bvals'] == 0))
-        vol = nib.Nifti1Image(np.mean(data['eddy_epi'].get_data()[..., idxs_b0_pe], axis=3), data['eddy_epi'].get_affine(), data['eddy_epi'].header)
+        vol = nib.Nifti1Image(np.mean(data['eddy_epi'].get_data()[..., idxs_b0_pe[0]], axis=3), data['eddy_epi'].get_affine(), data['eddy_epi'].header)
         nib.save(vol, data['qc_path'] + "/avg_b0_pe" + str(i) + ".nii.gz")
         vol = vol.get_data()
         i_max = np.round(np.mean(vol[:,:,:][data['mask'] != 0.0])+3*np.std(vol[:,:,:][data['mask'] != 0.0]))
