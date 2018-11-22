@@ -24,9 +24,9 @@ def round_bvals(bvals):
             use = same_b[use].any(0)
             if (use & selected).any():
                 raise ValueError('Re-using the same indices (%s)' % str(np.where(use & selected))[0])
-        median_b = np.median(bvals[use])
+        median_b = int(np.median(bvals[use]))
         print('found b-shell of %i orientations with b-value %f' % (nuse, median_b))
-        res_b[use] = int(median_b)
+        res_b[use] = median_b
         selected[use] = True
     res_b[res_b <= tol] = 0
     return res_b
