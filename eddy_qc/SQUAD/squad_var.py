@@ -40,7 +40,7 @@ def main(pdf, db, grp, s_data, s_grp):
     # Prepare figure
     #================================================
     plt.figure(figsize=(8.27,11.69))   # Standard portrait A4 sizes
-    plt.suptitle("QUAD: Group report", fontsize=10, fontweight='bold')
+    plt.suptitle("SQUAD: Group report", fontsize=10, fontweight='bold')
 
     # MOTION
     ax1 = plt.subplot2grid((3, 1), (0, 0), colspan=1)
@@ -100,7 +100,7 @@ def main(pdf, db, grp, s_data, s_grp):
     #================================================
     if db['cnr_flag']:
         plt.figure(figsize=(8.27,11.69))   # Standard portrait A4 sizes
-        plt.suptitle("QUAD: Group report", fontsize=10, fontweight='bold')
+        plt.suptitle("SQUAD: Group report", fontsize=10, fontweight='bold')
 
         # SNR
         ax1 = plt.subplot2grid((1+db['data_no_shells'], 1), (0, 0), colspan=1)

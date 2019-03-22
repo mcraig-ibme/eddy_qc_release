@@ -11,6 +11,7 @@ from PyPDF2 import PdfFileMerger, PdfFileReader, PdfFileWriter
 from eddy_qc.SQUAD import squad_group
 from eddy_qc.SQUAD import squad_var
 from eddy_qc.QUAD import quad_tables
+from eddy_qc.utils import ref_page
 seaborn.set()
 
 
@@ -96,7 +97,7 @@ def main(db, sList, grp, grpDb):
             pe_db = np.reshape(np.atleast_2d(db['data_unique_pes']), (-1,4))[:,0:3]
             pe_sub = np.reshape(np.atleast_2d(sData['data_eddy_para']), (-1,4))[:,0:3]
             common_pe = np.array(np.all((pe_db[:,None,:]==pe_sub[None,:,:]),axis=-1).nonzero()).T
-            
+
             ol_colour_idx = (3*np.ones(1+sData['data_no_shells']+sData['data_no_PE_dirs'])).astype(int)     
             if sData['qc_ol_flag']:
                 ol_colour_idx[0] = (np.clip(np.floor((sData['qc_outliers_tot']-ol_avg[0])/ol_std[0]),0,2)).astype(int)    
@@ -139,6 +140,7 @@ def main(db, sList, grp, grpDb):
             }   
             data = {
             'subj_id':sData['data_file_eddy'],
+            'qc_path':line,
             'unique_bvals':np.array(sData['data_unique_bvals']),
             'unique_pedirs':np.array(sData['data_unique_pes']),
             'eddy_para':np.array(sData['data_eddy_para']),
@@ -146,11 +148,12 @@ def main(db, sList, grp, grpDb):
 
             # Generate a new single subject summary table pdf with outlier colour coding
             pp = PdfPages(line + '/qc_tables_tmp.pdf')        
+            ref_page.main(pp, data, [])     
             quad_tables.main(pp, data, eddy, True)
             pp.close()
             
             # Generate a new group pdf with subject marked as white star
-            pp = PdfPages(line + '/qc_tmp.pdf')        
+            pp = PdfPages(line + '/qc_tmp.pdf')   
             squad_group.main(pp, db, grp, sData)
             if grp is not False:
                 if grpDb is False:
@@ -166,10 +169,16 @@ def main(db, sList, grp, grpDb):
 
             output = PdfFileWriter()
 
-            output.addPage(file1.getPage(0))
-            for i in np.arange(1,file2.numPages):
+            for i in np.arange(0, file1.numPages):
+                output.addPage(file1.getPage(i))
+            # Get pages from quad report and skip ref page if present
+            if os.path.isfile(line + '/ref.txt'):
+                i_start = 2
+            else:
+                i_start = 1
+            for i in np.arange(i_start, file2.numPages):
                 output.addPage(file2.getPage(i))
-            for i in np.arange(0,file3.numPages):
+            for i in np.arange(0, file3.numPages):
                 output.addPage(file3.getPage(i))
 
             outputStream = open(line + '/qc_updated.pdf', 'wb')

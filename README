@@ -3,15 +3,19 @@ EDDY QC
 Matteo Bastiani, FMRIB
 August, 2017
 -------------------------------------------
-Automated tools based on FSL's eddy to perform quality assessment on diffusion mri (dMRI) datasets.
+Automated tools based on FSL's eddy (https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/eddy) to perform quality assessment on diffusion mri (dMRI) datasets.
 
 Installation
 ------------
-The eddy qc tools will be distributed with FSL.
+The eddy qc tools is currently distributed with FSL (v > 6.0.0, https://fsl.fmrib.ox.ac.uk/fsl/fslwiki).
 
-If you want to install the tools within your python (>= 3.5) environment, once the library has been downloaded, run:
+If you want to install the tools within, e.g., your conda python environment, download the library and run:
 cd /path-to-lib/eddy_qc
 python setup.py install 
+
+Paper
+-----
+https://www.ncbi.nlm.nih.gov/pubmed/30267859
 
 Wiki page
 ---------

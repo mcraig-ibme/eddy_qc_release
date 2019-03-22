@@ -1,6 +1,7 @@
 #!/usr/bin/env fslpython
 import argparse
 import sys
+import pkg_resources
 
 
 #=========================================================================================
@@ -9,7 +10,8 @@ import sys
 # 01-06-2017, FMRIB, Oxford
 #=========================================================================================
 def usage():
-    print("eddy_squad: Study-wise QUality Assessment for DMRI")
+    version = pkg_resources.require("eddy_qc")[0].version
+    print("eddy_squad: Study-wise QUality Assessment for DMRI, v" + str(version))
     print("   ")
     print("Usage: eddy_squad <list> [options]")
     print("   ")

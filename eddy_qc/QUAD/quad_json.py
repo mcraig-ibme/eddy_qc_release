@@ -18,7 +18,7 @@ import json
 #=========================================================================================
 
 
-def main(data, eddy):
+def main(data, eddy, eddy_input):
     """
     Create JSON file that contains data informationa and qc indices derived from the single
     subject qc analysis. This information will then be used for a further group qc analysis
@@ -30,6 +30,9 @@ def main(data, eddy):
     """
     
     data_json = {
+        'eddy_input_flag':eddy_input.KnowsParameters(),
+        'eddy_input':eddy_input.GetParameters(),
+        
         'data_file_eddy':data['subj_id'],
         'data_file_mask':data['mask_id'],
         'data_file_bvals':data['bvals_id'],
@@ -61,33 +64,8 @@ def main(data, eddy):
         'qc_cnr_std':eddy['std_cnr'].tolist(),
         'qc_rss_flag':eddy['rssFlag'],
     }
-    '''
-        'motionFlag':False,
-        'motion':[],
-        'avg_abs_mot':-1,
-        'avg_rel_mot':-1,
-        
-        'paramsFlag':False,
-        'params':[],
-        
-        'olFlag':False,
-        'olMap':[],
-        'olMap_std':[],
-        'tot_ol':-1,
-        'b_ol':np.full((1, data['unique_bvals'].size), -1.0),
-        'pe_ol':np.full((1, data['no_PE_dirs']), -1.0),
-        
-        'cnrFlag':False,
-        'cnrFile':[],
-        'avg_cnr':np.full((1, 1+data['unique_bvals'].size),-1.0),
-        'std_cnr':np.full((1, 1+data['unique_bvals'].size),-1.0),
 
-        'rssFlag':False,
-        'rssFile':[],
-        'avg_rss':np.full((1, data['bvals'].size),-1.0),
-    '''
-    
-
+    # Write dictionary to json
     with open(data['qc_path'] + '/qc.json', 'w') as fp:
         json.dump(data_json, fp, sort_keys=True, indent=4, separators=(',', ': '))
     

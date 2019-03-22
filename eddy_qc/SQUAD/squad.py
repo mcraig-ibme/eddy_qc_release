@@ -4,12 +4,15 @@ import datetime
 import os
 import warnings
 import matplotlib
+import matplotlib.style
 import numpy as np
 warnings.filterwarnings("ignore")
 matplotlib.use('Agg')   # generate pdf output by default
 matplotlib.interactive(False)
+matplotlib.style.use('classic')
 from matplotlib.backends.backend_pdf import PdfPages
 from eddy_qc.SQUAD import (squad_group, squad_var, squad_db, squad_update)
+from eddy_qc.utils import (utils, ref_page)
 
 
 #=========================================================================================
@@ -72,6 +75,10 @@ def main(sList, gVar, gDbVar, uOpt, oDir):
 
         # Start generating the group database
         print('Generating group database...')
+
+        # Get eddy references
+        data = {'qc_path':out_dir}
+        ec = utils.EddyCommand(' ', 'squad')
         
         #=========================================================================================
         # Directory and group QC database creation.
@@ -96,6 +103,7 @@ def main(sList, gVar, gDbVar, uOpt, oDir):
         pp = PdfPages(out_dir + '/group_qc.pdf')        
         
         # Add pages and, if needed, group indices
+        ref_page.main(pp, data, ec)
         squad_group.main(pp, db, group, None)
         if group is not False:
             squad_var.main(pp, db, group, None, None)

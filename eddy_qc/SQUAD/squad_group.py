@@ -38,25 +38,26 @@ def main(pdf, db, grp, s_data):
     #================================================
     # Prepare figure
     #================================================
-    plt.figure(figsize=(8.27,11.69))   # Standard portrait A4 sizes
-    plt.suptitle("QUAD: Group report", fontsize=10, fontweight='bold')
+    plt.figure(figsize=(8.27, 11.69))   # Standard portrait A4 sizes
+    plt.suptitle("SQUAD: Group report", fontsize=10, fontweight='bold')
 
-    # Acquired volumes and groups
+    # Groups and acquired volumes
     if grp is not False:
         ax1_00 = plt.subplot2grid((3, 4), (0, 0), colspan=1)
-        seaborn.distplot(grp[grp.dtype.names[0]][1:], bins=np.arange(-1.5+round(min(grp[grp.dtype.names[0]][1:])),1.5+round(max(grp[grp.dtype.names[0]][1:]))), norm_hist=False, kde=False, ax=ax1_00)
-        ax1_00.set_xlabel(grp.dtype.names[0])
-        ax1_00.set_ylabel("N")
-        ax1_00.set_title(grp.dtype.names[0])
-        #ax1_00.set_xlim([-1+round(min(grp[grp.dtype.names[0]][1:])),1+round(max(grp[grp.dtype.names[0]][1:]))])
-        #ax1_00.set_xticks(np.unique(np.round(grp[grp.dtype.names[0]])))
-        ax1_00.yaxis.set_major_locator(MaxNLocator(integer=True))
+        g = seaborn.distplot(grp[grp.dtype.names[0]][1:], vertical=True, bins=np.arange(-1.5+round(min(grp[grp.dtype.names[0]][1:])),1.5+round(max(grp[grp.dtype.names[0]][1:]))), norm_hist=False, kde=False, ax=ax1_00)
+        ax1_00.set_ylabel(grp.dtype.names[0])
+        ax1_00.set_xlabel("N")
+        # ax1_00.set_xlim([-1+round(min(grp[grp.dtype.names[0]][1:])),1+round(max(grp[grp.dtype.names[0]][1:]))])
+        # ax1_00.set_xticks(np.unique(np.round(grp[grp.dtype.names[0]])))
+        ax1_00.xaxis.set_major_locator(MaxNLocator(integer=True))
+        ax1_00.set_xticks([0, np.max(ax1_00.get_xticks())])
 
         ax1_01 = plt.subplot2grid((3, 4), (0, 1), colspan=3)
-        
     else:
         ax1_01 = plt.subplot2grid((3, 4), (0, 0), colspan=4)
-    seaborn.barplot(x=np.arange(1, 1+db['data_no_subjects']), y=np.sum(db['data_protocol'], axis=1), color='blue', ax=ax1_01)
+    seaborn.barplot(x=np.arange(1, 1+db['data_no_subjects']),
+                    y=np.sum(db['data_protocol'], axis=1),
+                    color='blue', ax=ax1_01)
     n_vols, counts = np.unique(np.sum(db['data_protocol'], axis=1), return_counts=True)
     n_vols_mode = n_vols[np.argmax(counts)]
     n_vols_ol = 1 + np.where(np.sum(db['data_protocol'], axis=1) != n_vols_mode )[0] 
@@ -174,7 +175,7 @@ def main(pdf, db, grp, s_data):
     # OUTLIERS AND CNR
     if db['ol_flag'] or db['cnr_flag']:
         plt.figure(figsize=(8.27,11.69))   # Standard portrait A4 sizes
-        plt.suptitle("QUAD: Group report", fontsize=10, fontweight='bold')
+        plt.suptitle("SQUAD: Group report", fontsize=10, fontweight='bold')
         
         # Look for shared b-values and PE directions if updating single subject reports
         if s_data is not None:

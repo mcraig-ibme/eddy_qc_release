@@ -8,13 +8,15 @@ warnings.filterwarnings("ignore")
 import numpy as np
 import nibabel as nib
 import matplotlib
+import matplotlib.style
 matplotlib.use('Agg')   # generate pdf output by default
 matplotlib.interactive(False)
+matplotlib.style.use('classic')
 from matplotlib.backends.backend_pdf import PdfPages
 from eddy_qc.QUAD import (quad_tables, quad_mot, quad_s2v_mot, quad_eddy, 
                             quad_ol_mat, quad_cnr_maps, quad_cnr_msr, 
                             quad_avg_maps, quad_susc, quad_json)
-from eddy_qc.utils import (fslpy, utils)
+from eddy_qc.utils import (fslpy, utils, ref_page)
 
 
 #=========================================================================================
@@ -67,7 +69,7 @@ def main(eddyBase, eddyIdx, eddyParams, mask, bvalsFile, bvecsFile, oDir, field,
         raise ValueError(eddyIdx + ' does not appear to be a valid EDDY index file')
     # ACQUISITION PARAMETERS
     if os.path.isfile(eddyParams):
-        eddyPara = np.genfromtxt(eddyParams, dtype=float, delimiter=' ')
+        eddyPara = np.genfromtxt(eddyParams, dtype=float)
         #eddyPara = eddyPara.flatten()
         if eddyPara.ndim > 1:
             tmp_eddyPara = np.ascontiguousarray(eddyPara).view(np.dtype((np.void, eddyPara.dtype.itemsize * eddyPara.shape[1])))
@@ -136,7 +138,8 @@ def main(eddyBase, eddyIdx, eddyParams, mask, bvalsFile, bvecsFile, oDir, field,
         raise ValueError('Number of eddy indices does not appear to be consistent with EDDY corrected file')
     # Load binary brain mask file
     mask_vol = nib.load(mask)   
-    
+    if eddy_epi.shape[0:3] != mask_vol.shape:
+        raise ValueError('Mask and data dimensions are not consistent')
 
     #=========================================================================================
     # If directory exists, throw error. Otherwise, create
@@ -145,6 +148,11 @@ def main(eddyBase, eddyIdx, eddyParams, mask, bvalsFile, bvecsFile, oDir, field,
         raise ValueError(out_dir + ' directory already exists! Please specify a different one.')
     os.makedirs(out_dir)
 
+    #=========================================================================================
+    # If FSL v > 6.0.1, get the eddy input parameters
+    #=========================================================================================
+    ec = utils.EddyCommand(eddyBase, 'quad', verbose)
+    eddyInput = ec._parameters
     
     #=========================================================================================
     # Get data info and fill data dictionary
@@ -349,6 +357,7 @@ def main(eddyBase, eddyIdx, eddyParams, mask, bvalsFile, bvecsFile, oDir, field,
     #================================================
     pp = PdfPages(data['qc_path'] + '/qc.pdf')        
     
+    ref_page.main(pp, data, ec)
     quad_tables.main(pp, data, eddyOutput, False)
     if eddyOutput['motionFlag']:
         quad_mot.main(pp, data, eddyOutput)
@@ -366,7 +375,7 @@ def main(eddyBase, eddyIdx, eddyParams, mask, bvalsFile, bvecsFile, oDir, field,
         quad_cnr_msr.main(pp, data, eddyOutput)
         """
         quad_cnr_maps.main(pp, data, eddyOutput)
-    
+
     #================================================
     # Set the file's metadata via the PdfPages object:
     #================================================
@@ -384,6 +393,6 @@ def main(eddyBase, eddyIdx, eddyParams, mask, bvalsFile, bvecsFile, oDir, field,
     #=========================================================================================
     # Export stats and data info to json file
     #=========================================================================================
-    quad_json.main(data, eddyOutput)
+    quad_json.main(data, eddyOutput, ec)
     
 
