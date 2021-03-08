@@ -3,7 +3,7 @@ with open('requirements.txt', 'rt') as f:
     install_requires = [l.strip() for l in f.readlines()]
 
 setup(name='eddy_qc',
-	version='1.0.2',
+	version='1.0.3',
 	description='EDDY Quality Control tools',
 	author='Matteo Bastiani',
 	install_requires=install_requires,

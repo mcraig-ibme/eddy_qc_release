@@ -7,7 +7,7 @@ Automated tools based on FSL's eddy (https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/eddy
 
 Installation
 ------------
-The eddy qc tools is currently distributed with FSL (v > 6.0.0, https://fsl.fmrib.ox.ac.uk/fsl/fslwiki).
+The eddy qc tools are currently distributed with FSL (v > 6.0.0, https://fsl.fmrib.ox.ac.uk/fsl/fslwiki).
 
 If you want to install the tools within, e.g., your conda python environment, download the library and run:
 cd /path-to-lib/eddy_qc
