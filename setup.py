@@ -7,6 +7,6 @@ setup(name='eddy_qc',
 	description='EDDY Quality Control tools',
 	author='Matteo Bastiani',
 	install_requires=install_requires,
-    scripts=['eddy_qc/scripts/eddy_squad','eddy_qc/scripts/eddy_quad'],
+    scripts=['eddy_qc/scripts/eddy_squad','eddy_qc/scripts/eddy_quad','eddy_qc/scripts/eddy_gsquad'],
 	packages=find_packages(),
 	include_package_data=True)
