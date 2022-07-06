@@ -3,14 +3,44 @@
 import json
 import os
 
-
-
-
 #=========================================================================================
 # SQUAD - Perform database I/O operations
 # Matteo Bastiani
 # 01-08-2017, FMRIB, Oxford
 #=========================================================================================
+
+# Names of JSON fields which flag whether a particular QC output is relevant
+QC_FLAG_FIELDS = {
+    'ol' : 'qc_ol_flag', 
+    'susc' : 'qc_field_flag', 
+    'par' : 'qc_params_flag', 
+    's2v_par' : 'qc_s2v_params_flag', 
+    'cnr' : 'qc_cnr_flag', 
+    'rss' : 'qc_rss_flag',
+}
+
+# Names of JSON fields containing data for each QC output
+QC_DATA_FIELDS = {
+    'ol' : ['qc_outliers_tot', 'qc_outliers_b', 'qc_outliers_pe'],
+    'susc' : ['qc_vox_displ_std'],
+    'par' : ['qc_params_avg'],
+    's2v_par' : ['qc_s2v_params_avg_std'],
+    'cnr' :  ['qc_cnr_avg'],
+    'motion' : ['qc_mot_abs', 'qc_mot_rel'],
+    'data' : ['data_protocol'],
+}
+
+# Names of JSON fields containing acquisition/parameter information
+# (taken from last subject read and assumed to match for all)
+ACQ_DATA_FIELDS = {
+    'data_no_shells' : 'data_no_shells',
+    'data_no_pes' : 'data_no_PE_dirs',
+    'data_no_b0_vols' : 'data_no_b0_vols',
+    'data_no_dw_vols' : 'data_no_dw_vols',
+    'data_unique_bvals' : 'data_unique_bvals',
+    'data_unique_pes' : 'data_eddy_para',
+    'data_vox_size' : 'data_vox_size',
+}
 
 def main(fn, op, sList):
     """
@@ -19,119 +49,69 @@ def main(fn, op, sList):
     - write to .json file
     
     Arguments:
-        - db: database in dictionary format
-        - fn: filename
+        - fn: Filename of JSON DB to create/read
         - op: 'r' to read, 'w' to write
+        - sList: Filename of subject list
     """
     if op == 'w':
-        
-        countSubjects = 0
-        data_list = []
-        qc_mot_list = []
-        qc_params_list = []
-        qc_s2v_params_list = []
-        qc_susc_list = []
-        qc_ol_list = []
-        qc_cnr_list = []
-        
         with open(sList) as fp:
-            for line in fp:
-                line=line.rstrip('\n')
-                qc_json = line + '/qc.json'
-                if not os.path.isfile(qc_json):
-                    raise ValueError(qc_json + ' does not appear to be a valid qc.json file')
-                countSubjects = countSubjects + 1
-                with open(qc_json) as qc_file:    
-                    sData = json.load(qc_file)
-                # Check that eddy has been run in the same way for all subjects
-                if countSubjects == 1:
-                    ol_flag = sData['qc_ol_flag']
-                    susc_flag = sData['qc_field_flag']
-                    par_flag = sData['qc_params_flag']
-                    s2v_par_flag = sData['qc_s2v_params_flag']
-                    cnr_flag = sData['qc_cnr_flag']
-                    rss_flag = sData['qc_rss_flag']
-                else:
-                    if sData['qc_params_flag'] != par_flag:
-                        raise ValueError('Eddy output inconsistency detected!')
-                    if sData['qc_s2v_params_flag'] != s2v_par_flag:
-                        raise ValueError('Eddy output inconsistency detected!')
-                    if sData['qc_field_flag'] != susc_flag:
-                        raise ValueError('Eddy output inconsistency detected!')
-                    if sData['qc_ol_flag'] != ol_flag:
-                        raise ValueError('Eddy output inconsistency detected!')
-                    if sData['qc_cnr_flag'] != cnr_flag:
-                        raise ValueError('Eddy output inconsistency detected!')
-                    if sData['qc_rss_flag'] != rss_flag:
-                        raise ValueError('Eddy output inconsistency detected!')
+            subjects = [l.strip() for l in fp.readlines()]
         
+        group_qc_data = {k : [] for k in QC_DATA_FIELDS}
 
-                # Initialize empty subject lists
-                data_tmp = []
-                mot_tmp = []
-                par_tmp = []
-                s2v_par_tmp = []
-                susc_tmp = []
-                ol_tmp = []
-                cnr_tmp = []    
+        for idx, subject in enumerate(subjects):
+            qc_json = os.path.join(subject, 'qc.json')
+            if not os.path.isfile(qc_json):
+                raise ValueError(qc_json + ' does not appear to be a valid qc.json file')
+            with open(qc_json) as qc_file:    
+                sData = json.load(qc_file)
 
-                # Store qc indices in lists
-                data_tmp.extend(sData['data_protocol'])
-                
-                mot_tmp.extend([sData['qc_mot_abs'], sData['qc_mot_rel']])
-                if sData['qc_params_flag']:
-                    par_tmp.extend(sData['qc_params_avg'])
-                if sData['qc_s2v_params_flag']:
-                    s2v_par_tmp.extend(sData['qc_s2v_params_avg_std'])
-                if sData['qc_field_flag']:
-                    susc_tmp.append(sData['qc_vox_displ_std'])
-                if sData['qc_ol_flag']:
-                    ol_tmp.append(sData['qc_outliers_tot'])
-                    ol_tmp.extend(sData['qc_outliers_b'])
-                    ol_tmp.extend(sData['qc_outliers_pe'])
-                if sData['qc_cnr_flag']:
-                    cnr_tmp.extend(sData['qc_cnr_avg'])
-                
-                data_list.append(data_tmp)
-                qc_mot_list.append(mot_tmp)
-                qc_params_list.append(par_tmp)
-                qc_s2v_params_list.append(s2v_par_tmp)
-                qc_susc_list.append(susc_tmp)
-                qc_ol_list.append(ol_tmp)
-                qc_cnr_list.append(cnr_tmp)
-        
+            # Check that eddy has been run in the same way for all subjects
+            subject_flag_values = {key : sData.get(field, False) for key, field in QC_FLAG_FIELDS.items()}
+            if idx == 0:
+                group_flag_values = subject_flag_values
+            else:
+                if subject_flag_values != group_flag_values:
+                    raise ValueError('Eddy output inconsistency detected!')
+
+            # Collect QC data from subject and add it to the group list
+            subj_qc_data = {k : [] for k in QC_DATA_FIELDS.keys()}
+            for key, fields in QC_DATA_FIELDS.items():
+                subj_qc_data = []
+                if group_flag_values.get(key, True):
+                    for field in fields:
+                        if field in sData:
+                            value = sData[field]
+                            if isinstance(value, list):
+                                subj_qc_data.extend(value)
+                            else:
+                                subj_qc_data.append(value)
+                group_qc_data[key].append(subj_qc_data)
         
         #=========================================================================================
         # Database creation as a dictionary
+        #
+        # FIXME use naming conventions to simplify this
         #=========================================================================================       
         db = {
-            # eddy options
-            'ol_flag':ol_flag,
-            'par_flag':par_flag,
-            's2v_par_flag':s2v_par_flag,
-            'susc_flag':susc_flag,
-            'cnr_flag':cnr_flag,
-            'rss_flag':rss_flag,
-
-            # data info
-            'data_no_subjects':countSubjects,
-            'data_no_shells':sData['data_no_shells'],
-            'data_no_pes':sData['data_no_PE_dirs'],
-            'data_no_b0_vols':sData['data_no_b0_vols'],
-            'data_no_dw_vols':sData['data_no_dw_vols'],
-            'data_unique_bvals':sData['data_unique_bvals'],
-            'data_unique_pes':sData['data_eddy_para'],
-            'data_protocol':data_list,
-            'data_vox_size':sData['data_vox_size'],
+            # data info - note taken from last subject read, assuming consistency
+            'data_no_subjects' : len(subjects),
+            'data_protocol' : group_qc_data['data'],
 
             # qc indices
-            'qc_motion':qc_mot_list,
-            'qc_parameters':qc_params_list,
-            'qc_s2v_parameters':qc_s2v_params_list,
-            'qc_susceptibility':qc_susc_list,
-            'qc_outliers':qc_ol_list,
-            'qc_cnr':qc_cnr_list,
+            'qc_motion' : group_qc_data['motion'],
+            'qc_parameters' : group_qc_data['par'],
+            'qc_s2v_parameters' : group_qc_data['s2v_par'],
+            'qc_susceptibility' : group_qc_data['susc'],
+            'qc_outliers' : group_qc_data['ol'],
+            'qc_cnr' : group_qc_data['cnr'],
         }
+        for key, field in ACQ_DATA_FIELDS.items():
+            db[key] = sData[field]
+
+        # eddy options
+        for key in group_flag_values:
+            db[key + '_flag'] = group_flag_values[key]
 
         with open(fn, 'w') as fp:
             json.dump(db, fp, sort_keys=True, indent=4, separators=(',', ': '))
@@ -143,4 +123,3 @@ def main(fn, op, sList):
             raise ValueError(fn + ' does not appear to be a valid group_db.json file')
         with open(fn, 'r') as fp:
             return json.load(fp)
-    
