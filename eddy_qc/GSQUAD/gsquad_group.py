@@ -1,23 +1,15 @@
 #!/usr/bin/env fslpython
+"""
+GSQUAD - Main group report
 
+Matteo Bastiani, FMRIB, Oxford
+Martin Craig, SPMIC, Nottingham
+"""
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import matplotlib.ticker as ticker
 from pylab import MaxNLocator
 import seaborn
 seaborn.set()
-
-
-
-
-
-
-#=========================================================================================
-# SQUAD - Main group report
-# Matteo Bastiani
-# 01-08-2017, FMRIB, Oxford
-#=========================================================================================
 
 def main(pdf, db, grp, s_data):
     """
@@ -33,15 +25,13 @@ def main(pdf, db, grp, s_data):
         - grp: optional grouping variable
         - s_data: single subject dictionary to update pdf
     """
-
-
     #================================================
     # Prepare figure
     #================================================
     plt.figure(figsize=(8.27, 11.69))   # Standard portrait A4 sizes
     plt.suptitle("SQUAD: Group report", fontsize=10, fontweight='bold')
 
-    # Groups and acquired volumes
+    ## Groups
     if grp is not False:
         ax1_00 = plt.subplot2grid((3, 4), (0, 0), colspan=1)
         g = seaborn.distplot(grp[grp.dtype.names[0]][1:], vertical=True, bins=np.arange(-1.5+round(min(grp[grp.dtype.names[0]][1:])),1.5+round(max(grp[grp.dtype.names[0]][1:]))), norm_hist=False, kde=False, ax=ax1_00)
@@ -52,44 +42,46 @@ def main(pdf, db, grp, s_data):
         ax1_00.xaxis.set_major_locator(MaxNLocator(integer=True))
         ax1_00.set_xticks([0, np.max(ax1_00.get_xticks())])
 
-        ax1_01 = plt.subplot2grid((3, 4), (0, 1), colspan=3)
-    else:
-        ax1_01 = plt.subplot2grid((3, 4), (0, 0), colspan=4)
-    seaborn.barplot(x=np.arange(1, 1+db['data_no_subjects']),
-                    y=np.sum(db['data_protocol'], axis=1),
-                    color='blue', ax=ax1_01)
-    n_vols, counts = np.unique(np.sum(db['data_protocol'], axis=1), return_counts=True)
-    n_vols_mode = n_vols[np.argmax(counts)]
-    n_vols_ol = 1 + np.where(np.sum(db['data_protocol'], axis=1) != n_vols_mode )[0] 
-    ax1_01.set_xticks(n_vols_ol)
-    ax1_01.set_xticklabels(n_vols_ol)
-    ax1_01.tick_params(labelsize=6)
-    plt.setp(ax1_01.get_xticklabels(), rotation=90)
-    ax1_01.set_ylim(bottom=0)
-    ax1_01.set_xlabel("Subject")
-    ax1_01.set_ylabel("No. acquired volumes")
+    ## Bar plot of number of acquired volumes per subject
+    if "data_protocol" in db:
+        ax1_01 = plt.subplot2grid((3, 4), (0, 0), colspan=4 if grp is False else 3)
+        seaborn.barplot(x=np.arange(1, 1+db['data_num_subjects']),
+                        y=np.sum(db['data_protocol'], axis=1),
+                        color='blue', ax=ax1_01)
+        n_vols, counts = np.unique(np.sum(db['data_protocol'], axis=1), return_counts=True)
+        n_vols_mode = n_vols[np.argmax(counts)]
+        n_vols_ol = 1 + np.where(np.sum(db['data_protocol'], axis=1) != n_vols_mode )[0] 
+        ax1_01.set_xticks(n_vols_ol)
+        ax1_01.set_xticklabels(n_vols_ol)
+        ax1_01.tick_params(labelsize=6)
+        plt.setp(ax1_01.get_xticklabels(), rotation=90)
+        ax1_01.set_ylim(bottom=0)
+        ax1_01.set_xlabel("Subject")
+        ax1_01.set_ylabel("No. acquired volumes")
     
-    # MOTION
-    # Absolute
-    ax2_00 = plt.subplot2grid((3, 4), (1, 0), colspan=1)
-    seaborn.violinplot(data=db['qc_motion'][:,0], scale='width', width=0.5, palette='Set3', linewidth=1, inner='point', ax=ax2_00)
-    seaborn.despine(left=True, bottom=True, ax=ax2_00)
-    ax2_00.set_ylabel("mm (avg)")
-    ax2_00.set_ylim(bottom=0)
-    ax2_00.set_title("Abs. motion")
-    ax2_00.set_xticklabels([""])
-    # Relative
-    ax2_01 = plt.subplot2grid((3, 4), (1, 1), colspan=1)
-    seaborn.violinplot(data=db['qc_motion'][:,1], scale='width', width=0.5, palette='Set3', linewidth=1, inner='point', ax=ax2_01)
-    seaborn.despine(left=True, bottom=True, ax=ax2_01)
-    ax2_01.set_ylabel("mm (avg)")
-    ax2_01.set_ylim(bottom=0)
-    ax2_01.set_title("Rel. motion")
-    ax2_01.set_xticklabels([""])
-    # Check if needs to update single subject reports
-    if s_data is not None:
-        ax2_00.scatter(0, s_data['qc_mot_abs'], s=100, marker='*', c='w', edgecolors='k', linewidths=1 )
-        ax2_01.scatter(0, s_data['qc_mot_rel'], s=100, marker='*', c='w', edgecolors='k', linewidths=1 )
+    ## Motion
+    if "qc_motion" in db:
+        # Absolute
+        ax2_00 = plt.subplot2grid((3, 4), (1, 0), colspan=1)
+        seaborn.violinplot(data=db['qc_motion'][:,0], scale='width', width=0.5, palette='Set3', linewidth=1, inner='point', ax=ax2_00)
+        seaborn.despine(left=True, bottom=True, ax=ax2_00)
+        ax2_00.set_ylabel("mm (avg)")
+        ax2_00.set_ylim(bottom=0)
+        ax2_00.set_title("Abs. motion")
+        ax2_00.set_xticklabels([""])
+        # Relative
+        ax2_01 = plt.subplot2grid((3, 4), (1, 1), colspan=1)
+        seaborn.violinplot(data=db['qc_motion'][:,1], scale='width', width=0.5, palette='Set3', linewidth=1, inner='point', ax=ax2_01)
+        seaborn.despine(left=True, bottom=True, ax=ax2_01)
+        ax2_01.set_ylabel("mm (avg)")
+        ax2_01.set_ylim(bottom=0)
+        ax2_01.set_title("Rel. motion")
+        ax2_01.set_xticklabels([""])
+
+        # Add subject marker if this is a single-subject version of the report
+        if s_data is not None:
+            ax2_00.scatter(0, s_data['qc_mot_abs'], s=100, marker='*', c='w', edgecolors='k', linewidths=1 )
+            ax2_01.scatter(0, s_data['qc_mot_rel'], s=100, marker='*', c='w', edgecolors='k', linewidths=1 )
     
     # EDDY PARAMETERS
     if db['par_flag']:
@@ -107,7 +99,7 @@ def main(pdf, db, grp, s_data):
         ax2_03.set_ylabel("deg (avg)")
         ax2_03.set_title("Rotations")
         ax2_03.set_xticklabels(["x", "y", "z"])
-        
+
         # Eddy currents
         ec_span = 4
         vd_span = 0
@@ -128,7 +120,7 @@ def main(pdf, db, grp, s_data):
             ax2_02.scatter([0, 1, 2], s_data['qc_params_avg'][0:3], s=100, marker='*', c='w', edgecolors='k', linewidths=1)
             ax2_03.scatter([0, 1, 2], np.rad2deg(s_data['qc_params_avg'][3:6]), s=100, marker='*', c='w', edgecolors='k', linewidths=1)
             ax3_00.scatter([0, 1, 2], s_data['qc_params_avg'][6:9], s=100, marker='*', c='w', edgecolors='k', linewidths=1)
-    
+
         # Susceptibility
         if db['susc_flag']:
             ax3_00 = plt.subplot2grid((3, 4), (2, ec_span), colspan=vd_span)
@@ -140,7 +132,7 @@ def main(pdf, db, grp, s_data):
             ax3_00.set_ylim(bottom=0)
             if s_data is not None:
                 ax3_00.scatter(0, s_data['qc_vox_displ_std'], s=100, marker='*', c='w', edgecolors='k', linewidths=1)
-    
+
         # S2V motion
         if db['s2v_par_flag']:
             # Translations
@@ -163,8 +155,7 @@ def main(pdf, db, grp, s_data):
             ax3_00.set_ylim(bottom=0)
             if s_data is not None:
                 ax3_00.scatter([0, 1, 2], s_data['qc_s2v_params_avg_std'][3:6], s=100, marker='*', c='w', edgecolors='k', linewidths=1)
-    
-        
+
     #================================================
     # Format figure, save and close it
     #================================================

@@ -3,15 +3,18 @@ from __future__ import division
 import datetime
 import os
 import warnings
+
+import numpy as np
 import matplotlib
 import matplotlib.style
-import numpy as np
+from matplotlib.backends.backend_pdf import PdfPages
+
 warnings.filterwarnings("ignore")
 matplotlib.use('Agg')   # generate pdf output by default
 matplotlib.interactive(False)
 matplotlib.style.use('classic')
-from matplotlib.backends.backend_pdf import PdfPages
-from eddy_qc.GSQUAD import (gsquad_group, gsquad_var, gsquad_db, gsquad_update)
+
+from eddy_qc.GSQUAD import (gsquad_report, gsquad_var, gsquad_db, gsquad_update)
 from eddy_qc.utils import (utils, ref_page)
 
 
@@ -87,15 +90,6 @@ def main(sList, gVar, gDbVar, uOpt, oDir):
         db = gsquad_db.main(out_dir + '/group_db.json', 'w', sList)
         print('Group database generated and stored. Writing group QC report...')
 
-        # For convenience, convert lists to numpy arrays
-        db['data_protocol'] = np.array(db['data_protocol'])
-        db['qc_motion'] = np.array(db['qc_motion'])
-        db['qc_parameters'] = np.array(db['qc_parameters'])
-        db['qc_s2v_parameters'] = np.array(db['qc_s2v_parameters'])
-        db['qc_susceptibility'] = np.array(db['qc_susceptibility'])
-        db['qc_outliers'] = np.array(db['qc_outliers'])
-        db['qc_cnr'] = np.array(db['qc_cnr'])
-        
         #================================================
         # Add pages to QC report if information is there
         #================================================
@@ -104,7 +98,7 @@ def main(sList, gVar, gDbVar, uOpt, oDir):
         
         # Add pages and, if needed, group indices
         ref_page.main(pp, data, ec)
-        gsquad_group.main(pp, db, group, None)
+        gsquad_report.main(pp, db, group, None)
         if group is not False:
             gsquad_var.main(pp, db, group, None, None)
         
@@ -131,15 +125,6 @@ def main(sList, gVar, gDbVar, uOpt, oDir):
         print('Reading group database...')
         db = gsquad_db.main(uOpt, 'r', None)
         print('Group database imported.')
-
-        # For convenience, convert lists to numpy arrays
-        db['data_protocol'] = np.array(db['data_protocol'])
-        db['qc_motion'] = np.array(db['qc_motion'])
-        db['qc_parameters'] = np.array(db['qc_parameters'])
-        db['qc_s2v_parameters'] = np.array(db['qc_s2v_parameters'])
-        db['qc_susceptibility'] = np.array(db['qc_susceptibility'])
-        db['qc_outliers'] = np.array(db['qc_outliers'])
-        db['qc_cnr'] = np.array(db['qc_cnr'])
 
         # Update single subject reports
         print('Updating single subject reports...')
