@@ -84,6 +84,75 @@ def main(pdf, db, grp, s_data):
         #ax1_00.xaxis.set_major_locator(MaxNLocator(integer=True))
         #ax1_00.set_xticks([0, np.max(ax1_00.get_xticks())])
 
+    table_rows = 4
+    table_columns = 2
+    # Colormap to mark outliers in the summary tables
+    colours = np.array([[0.18, 0.79, 0.22, 0.5], [0.91, 0.71, 0.09, 0.5], [0.8, 0.20, 0.20, 0.5], [0, 0, 0, 0]])
+
+    if s_data is not None:
+        # For individual subject report, generate tables
+        table_idx, table_title, table_content, table_colours = 0, None, [], []
+        for group_idx, plots in enumerate(report):
+            # Get the axes on which to create the table FIXME count how many distinct tables
+
+            for plot_idx, plot in enumerate(plots):
+                plot = dict(plot)
+                new_table_title = plot.get("group_title", table_title)
+                if new_table_title != table_title:
+                    if table_title is not None:
+                        if table_idx % (table_rows*table_columns) == 0:
+                            if table_idx > 0:
+                                save_page(pdf)
+                            new_page()
+                        # Starting a new table - display the previous one first
+                        ax = plt.subplot2grid((table_rows, table_columns), (table_idx//table_columns, table_idx % table_columns))
+                        ax.axis('off')
+                        ax.axis('tight')
+                        ax.set_title(table_title, fontsize=12, fontweight='bold',loc='left')
+                        tb = ax.table(
+                            cellText=table_content, 
+                            cellColours=table_colours,
+                            loc='upper center',
+                            cellLoc='left',
+                            colWidths=[0.8, 0.2],
+                            #rowLabels=[" . "] * len(table_content),
+                            #rowColours=np.concatenate((eddy['mot_colour'], eddy['params_colour'][0:6]))
+                        )
+                        tb.auto_set_font_size(False)
+                        tb.set_fontsize(9)
+                        tb.scale(1,1.5)
+                        table_idx += 1
+                        table_content = []
+                        table_colours = []
+                    table_title = new_table_title
+
+                # Get the data variable and add all values to the table with appropriate label
+                data_item = plot.pop("var", None)
+                if data_item is None:
+                    print(f"WARNING: Variable not defined {plot}")
+                    continue
+                data_values = np.atleast_1d(s_data['qc_' + data_item])
+                group_values = db['qc_' + data_item]
+                mean = np.atleast_1d(np.mean(group_values, axis=0) + 1e-10)
+                std = np.atleast_1d(np.std(group_values, axis=0) + 1e-10)
+                for idx, value in enumerate(data_values):
+                    row_label = plot.get("title", "")
+                    if "xticklabels" in plot:
+                        xlabels = plot["xticklabels"]
+                        if isinstance(xlabels, str):
+                            xlabels = db[xlabels]
+                        row_label += ": %s" % xlabels[idx]
+                    if "ylabel" in plot:
+                        row_label += " (%s)" % plot["ylabel"]
+                    table_content.append([row_label, '%1.2f' % value])
+
+                    zval = (value-mean[idx])/std[idx]
+                    print(row_label, value, mean[idx], std[idx], zval)
+                    colour_idx = np.clip(np.floor(np.abs(zval)), 0, 2).astype(int)
+                    table_colours.append([colours[3], colours[colour_idx]])
+
+        save_page(pdf)
+            
     num_cols = max([len(plots) for plots in report])
 
     for group_idx, plots in enumerate(report):
@@ -99,6 +168,7 @@ def main(pdf, db, grp, s_data):
         current_col = 0
 
         for plot_idx, plot in enumerate(plots):
+            plot = dict(plot)
             # Get the data variable to be plotted
             data_item = plot.pop("var", None)
             if data_item is None:
@@ -130,7 +200,7 @@ def main(pdf, db, grp, s_data):
                 
             # Finally, if we have an individual subject's data, mark their data point on the plot with a white star
             if s_data is not None:
-                subject_data = s_data["qc_" + data_item]
+                subject_data = np.atleast_1d(s_data["qc_" + data_item])
                 ax.scatter(range(len(subject_data)), subject_data, s=100, marker='*', c='w', edgecolors='k', linewidths=1)
 
     # Save last page

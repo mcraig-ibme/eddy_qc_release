@@ -3,7 +3,7 @@ from __future__ import division
 import datetime
 import os
 import warnings
-
+import json
 import numpy as np
 import matplotlib
 import matplotlib.style
@@ -75,6 +75,9 @@ def main(sList, gVar, gDbVar, uOpt, oDir):
             out_dir = os.getcwd() + '/squad'
         if os.path.exists(out_dir):
             raise ValueError(out_dir + ' directory already exists! Please specify a different one.')
+                
+        with open(sList) as fp:
+            subjects = [l.strip() for l in fp.readlines()]
 
         # Start generating the group database
         print('Generating group database...')
@@ -118,7 +121,16 @@ def main(sList, gVar, gDbVar, uOpt, oDir):
         # If set, update single subject reports
         if uOpt == 2:
             print('Updating single subject reports...')
-            gsquad_update.main(db, sList, group, group_db)
+            for subject in subjects:
+                qc_json = subject + '/qc.json'
+                if not os.path.isfile(qc_json):
+                    raise ValueError(qc_json + ' does not appear to be a valid qc.json file')
+                else:
+                    with open(qc_json) as qc_file:    
+                        sData = json.load(qc_file)
+                pp = PdfPages(subject + '/group_qc.pdf')    
+                gsquad_report.main(pp, db, group, sData)
+                pp.close()
             print('Single subject QC reports updated')
     else:
         # Read group database
