@@ -39,28 +39,6 @@ def main(pdf, db, grp, s_data):
     report = db.get("gsquad_report", {})
     rows_per_page = 3
 
-    if False and grp is not False:
-        # Plot of distribution of grouping variable
-        # FIXME not functional, just capturing info from SQUAD code
-        data = grp[grp.dtype.names[0]][1:]
-        report.insert(0, [
-            {
-                "data" : data,
-                "plottype" : "distplot",
-                "bins" : np.arange(-1.5+round(min(data)),1.5+round(max(data))),
-                "kde" : False,
-                "norm_hist" : False,
-                "vertical" : True,
-                "ylabel" : grp.dtype.names[0],
-                "xlabel" : "N",
-            }
-        ])
-        
-        # ax1_00.set_xlim([-1+round(min(grp[grp.dtype.names[0]][1:])),1+round(max(grp[grp.dtype.names[0]][1:]))])
-        # ax1_00.set_xticks(np.unique(np.round(grp[grp.dtype.names[0]])))
-        #ax1_00.xaxis.set_major_locator(MaxNLocator(integer=True))
-        #ax1_00.set_xticks([0, np.max(ax1_00.get_xticks())])
-
     if False and "data_protocol" in db:
         # Bar plot of number of acquired volumes per subject
         # FIXME eddy specific and not functional, just capturing code from SQUAD
@@ -84,48 +62,76 @@ def main(pdf, db, grp, s_data):
         # ax1_01.set_xlabel("Subject")
         # ax1_01.set_ylabel("No. acquired volumes")
 
+    if False and grp is not False:
+        # Plot of distribution of grouping variable
+        # FIXME not functional, just capturing info from SQUAD code
+        data = grp[grp.dtype.names[0]][1:]
+        report.insert(0, [
+            {
+                "data" : data,
+                "plottype" : "distplot",
+                "bins" : np.arange(-1.5+round(min(data)),1.5+round(max(data))),
+                "kde" : False,
+                "norm_hist" : False,
+                "vertical" : True,
+                "ylabel" : grp.dtype.names[0],
+                "xlabel" : "N",
+            }
+        ])
+        
+        # ax1_00.set_xlim([-1+round(min(grp[grp.dtype.names[0]][1:])),1+round(max(grp[grp.dtype.names[0]][1:]))])
+        # ax1_00.set_xticks(np.unique(np.round(grp[grp.dtype.names[0]])))
+        #ax1_00.xaxis.set_major_locator(MaxNLocator(integer=True))
+        #ax1_00.set_xticks([0, np.max(ax1_00.get_xticks())])
+
     num_cols = max([len(plots) for plots in report])
 
     for group_idx, plots in enumerate(report):
+        # Check if we need to start a new page
         if group_idx % rows_per_page == 0:
-            # Start new page
             if group_idx > 0:
                 # Format and save previous page
                 save_page(pdf)
             new_page()
 
-        print(f"Plotting group {plots}")
+        # Find out how many columns the defined plots will occupy
         group_num_cols = sum([plot.get("colspan", 1) for plot in plots])
         current_col = 0
 
         for plot_idx, plot in enumerate(plots):
+            # Get the data variable to be plotted
             data_item = plot.pop("var", None)
             if data_item is None:
                 print(f"WARNING: Plot variable not defined {plot}")
                 continue
-            print(f"Plotting variable {data_item}")
             data_values = np.array(db['qc_' + data_item])
 
             # If there are fewer plots than columns, make initial plots span an extra column
             colspan = plot.pop("colspan", 1) 
             if group_num_cols < num_cols and plot_idx < (num_cols - group_num_cols):
                 colspan += 1
-                #print(f"Increasing colspan for {plot_var} to {colspan}")
 
+            # Get the axes on which to create the plot
             ax = plt.subplot2grid((rows_per_page, num_cols), (group_idx % rows_per_page, current_col), colspan=colspan)
             current_col += colspan
 
-            #print(f"Data: {data_values}")
+            # Plot the data
             seaborn.violinplot(data=data_values, scale='width', width=0.5, palette='Set3', linewidth=1, inner='point', ax=ax)
             seaborn.despine(left=True, bottom=True, ax=ax)
+
+            # Set other properties defined for the plot. Note that some properties can take their values
+            # from other data in the group JSON file
             for arg, value in plot.items():
-                #print(f"Setting {arg}={value}")
                 if arg in ["xticklabels",] and isinstance(value, str):
                     value = db[value]
-                    #print(f"Setting {arg}={value}")
                 setter = getattr(ax, f"set_{arg}", None)
                 if setter is not None:
                     setter(value)
+                
+            # Finally, if we have an individual subject's data, mark their data point on the plot with a white star
+            if s_data is not None:
+                subject_data = s_data["qc_" + data_item]
+                ax.scatter(range(len(subject_data)), subject_data, s=100, marker='*', c='w', edgecolors='k', linewidths=1)
 
     # Save last page
     save_page(pdf)
