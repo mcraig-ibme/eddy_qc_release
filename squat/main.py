@@ -27,7 +27,7 @@ from . import report, data, refs
 import argparse
 import sys
 
-__version__ = "0.0.1"
+from ._version import __version__
 
 def get_subjects(fname):
     if not fname:
@@ -41,27 +41,7 @@ def get_subjects(fname):
 
 def main():
     """
-    Generate a QC report pdf for group dMRI data.
-    The script will loop through the specified qc.json files obtained using eddy_squat on 
-    a set of subjects. It will produce a report pdf showing the distributions of the qc indices
-    if found in the .json files. If a grouping variable is provided, extra pages will show different 
-    distributions according to the grouping variable specified. If the update flag is set to true, it 
-    will also update the single subject qc reports putting them into the context of the larger group. 
-    Lastly, it will store the qc indices for all subjects to create a database for
-    future use.
-
-    Compulsory arguments:
-       list                          Text file containing a list of squat qc folders
-   
-    Optional arguments:
-       -g, --grouping                Text file containing grouping variable for the listed subjects
-       -u, --update [group_db.json]  Update existing eddy_squat reports after generating group report or using a pre-existing [group_db.json] one
-       -gdb, --group-db              Text file containing grouping variable for the database subjects
-       -o, --output-dir              Output directory - default = '<eddyBase>.qc' 
-    
-    Output:
-       output-dir/group_qc.pdf: study-wise QC report 
-       output-dir/group_db.json: study-wise QC database
+    Tool for generating QC reports for single subjects and groups
     """
     parser = argparse.ArgumentParser('Generalised Study-wise QUality Assessment Tool', add_help=True)
     parser.add_argument('--subjects', help='text file containing a list of single-subject QC output folders')
