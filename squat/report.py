@@ -130,8 +130,10 @@ def main(pdf, report_def, db, s_data=None):
                 if data_item is None:
                     print(f"WARNING: Variable not defined {plot}")
                     continue
-                data_values = np.atleast_1d(s_data['qc_' + data_item])
-                group_values = db['qc_' + data_item]
+                if not isinstance(data_item, list):
+                    data_item = [data_item]
+                data_values = np.concatenate([np.atleast_1d(s_data['qc_' + d]) for d in data_item])
+                group_values = np.concatenate([db['qc_' + d] for d in data_item])
                 mean = np.atleast_1d(np.mean(group_values, axis=0) + 1e-10)
                 std = np.atleast_1d(np.std(group_values, axis=0) + 1e-10)
                 for idx, value in enumerate(data_values):
