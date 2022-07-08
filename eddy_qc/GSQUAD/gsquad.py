@@ -1,10 +1,17 @@
-from __future__ import division
+#!/bin/env python
+"""
+GSQUAD (Generalised Study-wise QUality Assessment for DMRI)
 
+Matteo Bastiani, FMRIB, Oxford
+Martin Craig, SPMIC, Nottingham
+"""
 import datetime
 import os
 import warnings
 import json
+
 import numpy as np
+
 import matplotlib
 import matplotlib.style
 from matplotlib.backends.backend_pdf import PdfPages
@@ -17,13 +24,22 @@ matplotlib.style.use('classic')
 from eddy_qc.GSQUAD import (gsquad_report, gsquad_var, gsquad_db, gsquad_update)
 from eddy_qc.utils import (utils, ref_page)
 
+import argparse
+import sys
 
-#=========================================================================================
-# FSL EDDY SQUAD (Study-wise QUality Assessment for DMRI)
-# Matteo Bastiani
-# 01-06-2017, FMRIB, Oxford
-#=========================================================================================
-def main(sList, gVar, gDbVar, uOpt, oDir):
+__version__ = "0.0.1"
+
+def get_subjects(fname):
+    if not fname:
+        raise ValueError(f"A subject list (--subjects) must be provided when using --extract")
+
+    try:
+        with open(fname) as fp:
+            return [l.strip() for l in fp.readlines()]
+    except IOError as exc:
+        raise ValueError(f"Failed to read subject directories from {fname}: {exc}")
+
+def main():
     """
     Generate a QC report pdf for group dMRI data.
     The script will loop through the specified qc.json files obtained using eddy_squad on 
@@ -47,100 +63,69 @@ def main(sList, gVar, gDbVar, uOpt, oDir):
        output-dir/group_qc.pdf: study-wise QC report 
        output-dir/group_db.json: study-wise QC database
     """
+    parser = argparse.ArgumentParser('Generalised Study-wise QUality Assessment Tool', add_help=True)
+    parser.add_argument('--subjects', help='text file containing a list of single-subject QC output folders')
+    parser.add_argument('--extract', action="store_true", default=False, help="Extract data from single-subject QC output into group data file")
+    parser.add_argument('--group-data', help="JSON file containing previously extracted group QC data")
+    parser.add_argument('--group-report', action="store_true", default=False, help="Generate group report")
+    parser.add_argument('--subject-reports', action="store_true", default=False, help="Generate individual subject reports")
+    parser.add_argument('-o', '--output', default="gsquad", help='Output directory')
+    args = parser.parse_args()
 
-    # Check inputs
-    if not os.path.isfile(sList):
-        raise ValueError(sList + ' does not appear to be a valid subject qc folders list file')
-    if gVar is not None and os.path.isfile(gVar):
-        group = np.genfromtxt(gVar, dtype=None, names=True)
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
+
+    if not args.extract and not args.group_data:
+        raise ValueError("Must specify either --extract or provide a previously extracted group data file with --group-data")
+    elif args.extract and args.group_data:
+        raise ValueError("Cannot specify --extract and --group-data at the same time")
+
+    if os.path.exists(args.output):
+        raise ValueError(f"Output directory {args.output} already exists - remove or specify a different name")
+
+    os.makedirs(args.output)
+    if args.extract:
+        subject_list = get_subjects(args.subjects)
+
+        sys.stdout.write('Generating group data...')
+        group_data = gsquad_db.main(os.path.join(args.output, "group_data.json"), 'w', subject_list)
+        sys.stdout.write('DONE\n')
     else:
-        group = False
-    if gDbVar is not None and os.path.isfile(gDbVar):
-        group_db = np.genfromtxt(gDbVar, dtype=None, names=True)
-        if group_db[group_db.dtype.names[0]][0] != group[group.dtype.names[0]][0]:
-            raise ValueError('The two grouping variables categories do not match')
-    else:
-        group_db = False
+        group_data = gsquad_db.main(args.group_data, 'r')
+
+    if args.group_report:
+        sys.stdout.write('Generating group QC report...')
+        pdf = PdfPages(os.path.join(args.output, "group_report.pdf"))
+        ref_page.main(pdf)
+        gsquad_report.main(pdf, group_data)
+        pdf.close()
+        sys.stdout.write('DONE\n')
     
-    #================================================
-    # If requested, update the single subject reports
-    #================================================
-    if (uOpt == 1 or
-        uOpt == 2):
-        
-        # Check if output directory exists
-        if oDir is not None:
-            out_dir = oDir
-        else:
-            out_dir = os.getcwd() + '/squad'
-        if os.path.exists(out_dir):
-            raise ValueError(out_dir + ' directory already exists! Please specify a different one.')
-                
-        with open(sList) as fp:
-            subjects = [l.strip() for l in fp.readlines()]
+    if args.subject_reports:
+        sys.stdout.write('Generating subject QC reports...')
+        subject_list = get_subjects(args.subjects)
+        for subjdir in subject_list:
+            subjid = os.path.basename(subjdir)
+            try:
+                with open(os.path.join(subjdir, 'qc.json')) as qc_file:
+                    subject_data = json.load(qc_file)
+            except IOError as exc:
+                raise ValueError(f"Could not read subject data for subject {subjdir}: {exc}")
+            
+            pdf = PdfPages(os.path.join(args.output, f"{subjid}_report.pdf"))
+            ref_page.main(pdf)
+            gsquad_report.main(pdf, group_data, subject_data)
+        sys.stdout.write('DONE\n')
 
-        # Start generating the group database
-        print('Generating group database...')
+        # # Set the file's metadata via the PdfPages object:
+        # d = pp.infodict()
+        # d['Title'] = 'eddy_squad QC report'
+        # d['Author'] = u'Matteo Bastiani'
+        # d['Subject'] = 'group QC report'
+        # d['Keywords'] = 'QC dMRI'
+        # d['CreationDate'] = datetime.datetime.today()
+        # d['ModDate'] = datetime.datetime.today()
 
-        # Get eddy references
-        data = {'qc_path':out_dir}
-        ec = utils.EddyCommand(' ', 'squad')
-        
-        #=========================================================================================
-        # Directory and group QC database creation.
-        #=========================================================================================
-        os.makedirs(out_dir)
-        db = gsquad_db.main(out_dir + '/group_db.json', 'w', sList)
-        print('Group database generated and stored. Writing group QC report...')
-
-        #================================================
-        # Add pages to QC report if information is there
-        #================================================
-        # Initialize group QC pdf
-        pp = PdfPages(out_dir + '/group_qc.pdf')        
-        
-        # Add pages and, if needed, group indices
-        ref_page.main(pp, data, ec)
-        gsquad_report.main(pp, db, group, None)
-        if group is not False:
-            gsquad_var.main(pp, db, group, None, None)
-        
-        # Set the file's metadata via the PdfPages object:
-        d = pp.infodict()
-        d['Title'] = 'eddy_squad QC report'
-        d['Author'] = u'Matteo Bastiani'
-        d['Subject'] = 'group QC report'
-        d['Keywords'] = 'QC dMRI'
-        d['CreationDate'] = datetime.datetime.today()
-        d['ModDate'] = datetime.datetime.today()
-
-        # Close file
-        pp.close()
-        print('Group QC report generated')
-        
-        # If set, update single subject reports
-        if uOpt == 2:
-            print('Updating single subject reports...')
-            for subject in subjects:
-                qc_json = subject + '/qc.json'
-                if not os.path.isfile(qc_json):
-                    raise ValueError(qc_json + ' does not appear to be a valid qc.json file')
-                else:
-                    with open(qc_json) as qc_file:    
-                        sData = json.load(qc_file)
-                pp = PdfPages(subject + '/group_qc.pdf')    
-                gsquad_report.main(pp, db, group, sData)
-                pp.close()
-            print('Single subject QC reports updated')
-    else:
-        # Read group database
-        print('Reading group database...')
-        db = gsquad_db.main(uOpt, 'r', None)
-        print('Group database imported.')
-
-        # Update single subject reports
-        print('Updating single subject reports...')
-        gsquad_update.main(db, sList, group, group_db)
-        print('Single subject QC reports updated')
-        
-    
+if __name__ == "__main__":
+    main()

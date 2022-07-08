@@ -22,7 +22,7 @@ def new_page():
     plt.figure(figsize=(8.27,11.69))   # Standard portrait A4 sizes
     plt.suptitle("SQUAD: Group report", fontsize=10, fontweight='bold')
 
-def main(pdf, db, grp, s_data):
+def main(pdf, db, s_data=None):
     """
     Generate page of the group report pdf that contains:
     - bar plots of the number of acquired volumes for each subject

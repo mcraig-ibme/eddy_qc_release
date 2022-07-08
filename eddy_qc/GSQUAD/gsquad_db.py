@@ -8,7 +8,7 @@ Martin Craig: SPMIC, Nottingham
 import json
 import os
 
-def main(fn, op, sList):
+def main(fn, op, subjects=None):
     """
     Perform a database I/O operation:
     - read from .json file
@@ -20,11 +20,7 @@ def main(fn, op, sList):
         - sList: Filename of subject list
     """
     if op == 'w':
-        with open(sList) as fp:
-            subjects = [l.strip() for l in fp.readlines()]
-
         for idx, subject in enumerate(subjects):
-            print("SUbject %s" % subject)
             qc_json = os.path.join(subject, 'qc.json')
             if not os.path.isfile(qc_json):
                 raise ValueError(qc_json + ' does not appear to be a valid qc.json file')
@@ -42,14 +38,11 @@ def main(fn, op, sList):
             if idx == 0:
                 group_qc_fields = subject_qc_fields
                 group_qc_data = {k : [] for k in group_qc_fields}
-                print(group_qc_fields)
             else:
-                print(subject_qc_fields, group_qc_fields)
                 if subject_qc_fields != group_qc_fields:
                     raise ValueError(f'Inconsistency in QC fields for subject {idx}: {subject_qc_fields} vs {group_qc_fields}')
 
             # Collect QC data from subject and add it to the group list
-            print(subject_data)
             for qc_field in group_qc_fields:
                 subj_qc_data = []
                 value = subject_data["qc_" + qc_field]
