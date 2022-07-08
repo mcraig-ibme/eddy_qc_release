@@ -21,6 +21,25 @@ def new_page():
     plt.figure(figsize=(8.27,11.69))   # Standard portrait A4 sizes
     plt.suptitle("SQUAT: Group report", fontsize=10, fontweight='bold')
 
+def get_var(var, group_data, subject_data):
+    if not isinstance(var, list):
+        var = [var]
+    try:
+        group_values = np.concatenate([group_data['qc_' + d] for d in var])
+    except KeyError:
+        print(f"WARNING: Variable not found: {var}")
+        return [], []
+
+    if subject_data is not None:
+        try:
+            subject_values = np.concatenate([np.atleast_1d(subject_data['qc_' + d]) for d in var])
+        except KeyError:
+            print(f"WARNING: Variable not found for subject: {var}")
+            subject_values = []
+    else:
+        subject_values = None
+    return group_values, subject_values
+
 def main(pdf, report_def, db, s_data=None):
     """
     Generate page of the group report pdf that contains:
@@ -130,10 +149,7 @@ def main(pdf, report_def, db, s_data=None):
                 if data_item is None:
                     print(f"WARNING: Variable not defined {plot}")
                     continue
-                if not isinstance(data_item, list):
-                    data_item = [data_item]
-                data_values = np.concatenate([np.atleast_1d(s_data['qc_' + d]) for d in data_item])
-                group_values = np.concatenate([db['qc_' + d] for d in data_item])
+                group_values, data_values = get_var(data_item, db, s_data)
                 mean = np.atleast_1d(np.mean(group_values, axis=0) + 1e-10)
                 std = np.atleast_1d(np.std(group_values, axis=0) + 1e-10)
                 for idx, value in enumerate(data_values):
@@ -175,7 +191,7 @@ def main(pdf, report_def, db, s_data=None):
             if data_item is None:
                 print(f"WARNING: Plot variable not defined {plot}")
                 continue
-            data_values = np.array(db['qc_' + data_item])
+            group_values, subject_values = get_var(data_item, db, s_data)
 
             # If there are fewer plots than columns, make initial plots span an extra column
             colspan = plot.pop("colspan", 1) 
@@ -187,7 +203,7 @@ def main(pdf, report_def, db, s_data=None):
             current_col += colspan
 
             # Plot the data
-            seaborn.violinplot(data=data_values, scale='width', width=0.5, palette='Set3', linewidth=1, inner='point', ax=ax)
+            seaborn.violinplot(data=group_values, scale='width', width=0.5, palette='Set3', linewidth=1, inner='point', ax=ax)
             seaborn.despine(left=True, bottom=True, ax=ax)
 
             # Set other properties defined for the plot. Note that some properties can take their values
@@ -201,8 +217,7 @@ def main(pdf, report_def, db, s_data=None):
                 
             # Finally, if we have an individual subject's data, mark their data point on the plot with a white star
             if s_data is not None:
-                subject_data = np.atleast_1d(s_data["qc_" + data_item])
-                ax.scatter(range(len(subject_data)), subject_data, s=100, marker='*', c='w', edgecolors='k', linewidths=1)
+                ax.scatter(range(len(subject_values)), subject_values, s=100, marker='*', c='w', edgecolors='k', linewidths=1)
 
     # Save last page
     save_page(pdf)
