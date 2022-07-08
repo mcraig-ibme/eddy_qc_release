@@ -21,7 +21,7 @@ def new_page():
     plt.figure(figsize=(8.27,11.69))   # Standard portrait A4 sizes
     plt.suptitle("SQUAT: Group report", fontsize=10, fontweight='bold')
 
-def main(pdf, db, s_data=None):
+def main(pdf, report_def, db, s_data=None):
     """
     Generate page of the group report pdf that contains:
     - bar plots of the number of acquired volumes for each subject
@@ -35,7 +35,7 @@ def main(pdf, db, s_data=None):
         - grp: optional grouping variable
         - s_data: single subject dictionary to update pdf
     """
-    report = db.get("squat_report", {})
+    report = report_def.get("squat_report", {})
     rows_per_page = 3
 
     if False and "data_protocol" in db:

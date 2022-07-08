@@ -49,6 +49,7 @@ def main():
     parser.add_argument('--group-data', help="JSON file containing previously extracted group QC data")
     parser.add_argument('--group-report', action="store_true", default=False, help="Generate group report")
     parser.add_argument('--subject-reports', action="store_true", default=False, help="Generate individual subject reports")
+    parser.add_argument('--report-def', help="JSON report definition file")
     parser.add_argument('-o', '--output', default="squat", help='Output directory')
     args = parser.parse_args()
 
@@ -60,6 +61,16 @@ def main():
         raise ValueError("Must specify either --extract or provide a previously extracted group data file with --group-data")
     elif args.extract and args.group_data:
         raise ValueError("Cannot specify --extract and --group-data at the same time")
+
+    if args.group_report or args.subject_reports:
+        if not args.report_def:
+            raise ValueError("Report definition not given (--report-def)")
+
+        try:
+            with open(args.report_def, "r") as report_def_file:
+                report_def = json.load(report_def_file)
+        except (IOError, json.JSONDecodeError) as exc:
+            raise ValueError(f"Could not read report definition from {report_def}: {exc}")
 
     if os.path.exists(args.output):
         raise ValueError(f"Output directory {args.output} already exists - remove or specify a different name")
@@ -78,7 +89,7 @@ def main():
         sys.stdout.write('Generating group QC report...')
         pdf = PdfPages(os.path.join(args.output, "group_report.pdf"))
         refs.main(pdf)
-        report.main(pdf, group_data)
+        report.main(pdf, report_def, group_data)
         pdf.close()
         sys.stdout.write('DONE\n')
     
@@ -95,7 +106,7 @@ def main():
             
             pdf = PdfPages(os.path.join(args.output, f"{subjid}_report.pdf"))
             refs.main(pdf)
-            report.main(pdf, group_data, subject_data)
+            report.main(pdf, report_def, group_data, subject_data)
         sys.stdout.write('DONE\n')
 
         # # Set the file's metadata via the PdfPages object:
