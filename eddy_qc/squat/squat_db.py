@@ -1,6 +1,6 @@
 #!/usr/bin/env fslpython
 """
-DSQUAD: Handle operations on the group JSON data file
+SQUAT: Handle operations on the group JSON data file
 
 Matteo Bastiani: FMRIB, Oxford
 Martin Craig: SPMIC, Nottingham
@@ -32,7 +32,7 @@ def main(fn, op, subjects=None):
 
             # Collect list of QC fields - look for any keys starting with qc_<name>
             subject_qc_fields = [f[3:] for f in subject_data if f.startswith("qc_")]
-            gsquad_report = subject_data.get("gsquad_report", {})
+            squat_report = subject_data.get("squat_report", {})
             
             # Check QC fields match for all subjects
             if idx == 0:
@@ -58,7 +58,7 @@ def main(fn, op, subjects=None):
         db = {
             # data info - note taken from last subject read, assuming consistency
             'data_num_subjects' : len(subjects),
-            'gsquad_report' : gsquad_report,
+            'squat_report' : squat_report,
             #'data_protocol' : group_qc_data['data'],
         }
 

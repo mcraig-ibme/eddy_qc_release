@@ -32,7 +32,7 @@ def main(eddyBase, eddyIdx, eddyParams, mask, bvalsFile, bvecsFile, oDir, field,
     no page in the final report based on it will be produced.
     The script also produces a qc.json file that contains summery qc indices and basic 
     information about the data.
-    The JSON file can then be read by SQUAD to generate a group report. If the update flag 
+    The JSON file can then be read by squat to generate a group report. If the update flag 
     is true, the single subject pdf will be updated with the whole group context.
 
     Compulsory arguments:

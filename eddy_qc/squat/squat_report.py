@@ -1,6 +1,6 @@
 #!/usr/bin/env fslpython
 """
-GSQUAD - Individual or group report
+SQUAT - Individual or group report
 
 Matteo Bastiani, FMRIB, Oxford
 Martin Craig, SPMIC, Nottingham
@@ -20,7 +20,7 @@ def save_page(pdf):
 def new_page():
     print("Starting new page")
     plt.figure(figsize=(8.27,11.69))   # Standard portrait A4 sizes
-    plt.suptitle("SQUAD: Group report", fontsize=10, fontweight='bold')
+    plt.suptitle("SQUAT: Group report", fontsize=10, fontweight='bold')
 
 def main(pdf, db, s_data=None):
     """
@@ -36,7 +36,7 @@ def main(pdf, db, s_data=None):
         - grp: optional grouping variable
         - s_data: single subject dictionary to update pdf
     """
-    report = db.get("gsquad_report", {})
+    report = db.get("squat_report", {})
     rows_per_page = 3
 
     if False and "data_protocol" in db:

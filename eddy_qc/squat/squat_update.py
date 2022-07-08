@@ -1,6 +1,6 @@
 #!/usr/bin/env fslpython
 """
-GSQUAD - Update single subject pdfs
+SQUAT - Update single subject pdfs
 
 Matteo Bastiani, FMRIB, Oxford
 Martin Craig, SPMIC, Nottingham
@@ -14,21 +14,21 @@ import seaborn
 import os
 import json
 from PyPDF2 import PdfFileMerger, PdfFileReader, PdfFileWriter
-from eddy_qc.GSQUAD import gsquad_group
-from eddy_qc.GSQUAD import gsquad_var
+from eddy_qc.squat import squat_group
+from eddy_qc.squat import squat_var
 from eddy_qc.QUAD import quad_tables
 from eddy_qc.utils import ref_page
 seaborn.set()
 
 def main(db, sList, grp, grpDb):
     """
-    Update the single subject SQUAD reports by:
+    Update the single subject SQUAT reports by:
     - replacing first page with tables with coulour-coded cells indicating performances agains the database
     - adding the single subject performance as white star against the whole population and, if specified, against the subject's group
     
     Arguments:
         - db: qc pdf file
-        - sList: list of single subject squad folders
+        - sList: list of single subject squat folders
         - grp: Optional grouping variable
         - grpDb: group data
     """
@@ -85,7 +85,7 @@ def main(db, sList, grp, grpDb):
             cnr_colour_idx[0] = (np.abs(np.clip(np.ceil((sData['qc_cnr_avg'][0]-cnr_avg[0])/cnr_std[0]),-2,0))).astype(int)    
             cnr_colour_idx[1:][(common_b[:,1])] = (np.abs(np.clip(np.ceil((np.array(sData['qc_cnr_avg'])[1+common_b[:,1]]-cnr_avg[1+common_b[:,0]])/cnr_std[1+common_b[:,0]]),-2,0))).astype(int)    
         
-        # Fill eddy and data dictionaries for squad_tables function
+        # Fill eddy and data dictionaries for squat_tables function
         eddy = {
         'motionFlag':True,
         'avg_abs_mot':sData['qc_mot_abs'],
@@ -130,12 +130,12 @@ def main(db, sList, grp, grpDb):
         
         # Generate a new group pdf with subject marked as white star
         pp = PdfPages(subject + '/qc_tmp.pdf')   
-        gsquad_report.main(pp, db, grp, sData)
+        squat_report.main(pp, db, grp, sData)
         if grp is not False:
             if grpDb is False:
-                gsquad_var.main(pp, db, grp, sData, grp[grp.dtype.names[0]][s_idx+1])
+                squat_var.main(pp, db, grp, sData, grp[grp.dtype.names[0]][s_idx+1])
             else:
-                gsquad_var.main(pp, db, grpDb, sData, grp[grp.dtype.names[0]][s_idx+1])
+                squat_var.main(pp, db, grpDb, sData, grp[grp.dtype.names[0]][s_idx+1])
         pp.close()
         
         # Merge the three pdfs

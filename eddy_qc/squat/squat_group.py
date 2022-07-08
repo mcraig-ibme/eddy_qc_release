@@ -1,6 +1,6 @@
 #!/usr/bin/env fslpython
 """
-GSQUAD - Main group report
+squat - Main group report
 
 Matteo Bastiani, FMRIB, Oxford
 Martin Craig, SPMIC, Nottingham
@@ -29,7 +29,7 @@ def main(pdf, db, grp, s_data):
     # Prepare figure
     #================================================
     plt.figure(figsize=(8.27, 11.69))   # Standard portrait A4 sizes
-    plt.suptitle("SQUAD: Group report", fontsize=10, fontweight='bold')
+    plt.suptitle("SQUAT: Group report", fontsize=10, fontweight='bold')
 
     ## Groups
     if grp is not False:
@@ -166,7 +166,7 @@ def main(pdf, db, grp, s_data):
     # OUTLIERS AND CNR
     if db['ol_flag'] or db['cnr_flag']:
         plt.figure(figsize=(8.27,11.69))   # Standard portrait A4 sizes
-        plt.suptitle("SQUAD: Group report", fontsize=10, fontweight='bold')
+        plt.suptitle("SQUAT: Group report", fontsize=10, fontweight='bold')
         
         # Look for shared b-values and PE directions if updating single subject reports
         if s_data is not None:

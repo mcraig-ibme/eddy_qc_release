@@ -1,6 +1,6 @@
 #!/bin/env python
 """
-GSQUAD (Generalised Study-wise QUality Assessment for DMRI)
+SQUAT (Study-wise QUality Assessment Tool)
 
 Matteo Bastiani, FMRIB, Oxford
 Martin Craig, SPMIC, Nottingham
@@ -21,7 +21,7 @@ matplotlib.use('Agg')   # generate pdf output by default
 matplotlib.interactive(False)
 matplotlib.style.use('classic')
 
-from eddy_qc.GSQUAD import (gsquad_report, gsquad_var, gsquad_db, gsquad_update)
+from eddy_qc.squat import (squat_report, squat_var, squat_db, squat_update)
 from eddy_qc.utils import (utils, ref_page)
 
 import argparse
@@ -42,7 +42,7 @@ def get_subjects(fname):
 def main():
     """
     Generate a QC report pdf for group dMRI data.
-    The script will loop through the specified qc.json files obtained using eddy_squad on 
+    The script will loop through the specified qc.json files obtained using eddy_squat on 
     a set of subjects. It will produce a report pdf showing the distributions of the qc indices
     if found in the .json files. If a grouping variable is provided, extra pages will show different 
     distributions according to the grouping variable specified. If the update flag is set to true, it 
@@ -51,11 +51,11 @@ def main():
     future use.
 
     Compulsory arguments:
-       list                          Text file containing a list of squad qc folders
+       list                          Text file containing a list of squat qc folders
    
     Optional arguments:
        -g, --grouping                Text file containing grouping variable for the listed subjects
-       -u, --update [group_db.json]  Update existing eddy_squad reports after generating group report or using a pre-existing [group_db.json] one
+       -u, --update [group_db.json]  Update existing eddy_squat reports after generating group report or using a pre-existing [group_db.json] one
        -gdb, --group-db              Text file containing grouping variable for the database subjects
        -o, --output-dir              Output directory - default = '<eddyBase>.qc' 
     
@@ -69,7 +69,7 @@ def main():
     parser.add_argument('--group-data', help="JSON file containing previously extracted group QC data")
     parser.add_argument('--group-report', action="store_true", default=False, help="Generate group report")
     parser.add_argument('--subject-reports', action="store_true", default=False, help="Generate individual subject reports")
-    parser.add_argument('-o', '--output', default="gsquad", help='Output directory')
+    parser.add_argument('-o', '--output', default="squat", help='Output directory')
     args = parser.parse_args()
 
     if len(sys.argv) == 1:
@@ -89,16 +89,16 @@ def main():
         subject_list = get_subjects(args.subjects)
 
         sys.stdout.write('Generating group data...')
-        group_data = gsquad_db.main(os.path.join(args.output, "group_data.json"), 'w', subject_list)
+        group_data = squat_db.main(os.path.join(args.output, "group_data.json"), 'w', subject_list)
         sys.stdout.write('DONE\n')
     else:
-        group_data = gsquad_db.main(args.group_data, 'r')
+        group_data = squat_db.main(args.group_data, 'r')
 
     if args.group_report:
         sys.stdout.write('Generating group QC report...')
         pdf = PdfPages(os.path.join(args.output, "group_report.pdf"))
         ref_page.main(pdf)
-        gsquad_report.main(pdf, group_data)
+        squat_report.main(pdf, group_data)
         pdf.close()
         sys.stdout.write('DONE\n')
     
@@ -115,12 +115,12 @@ def main():
             
             pdf = PdfPages(os.path.join(args.output, f"{subjid}_report.pdf"))
             ref_page.main(pdf)
-            gsquad_report.main(pdf, group_data, subject_data)
+            squat_report.main(pdf, group_data, subject_data)
         sys.stdout.write('DONE\n')
 
         # # Set the file's metadata via the PdfPages object:
         # d = pp.infodict()
-        # d['Title'] = 'eddy_squad QC report'
+        # d['Title'] = 'eddy_squat QC report'
         # d['Author'] = u'Matteo Bastiani'
         # d['Subject'] = 'group QC report'
         # d['Keywords'] = 'QC dMRI'
