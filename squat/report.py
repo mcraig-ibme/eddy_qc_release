@@ -1,4 +1,3 @@
-#!/usr/bin/env fslpython
 """
 SQUAT - Individual or group report
 

@@ -41,7 +41,7 @@ def main(pdf, refs_fname=None):
         gs00 = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs0[0])
         ax1_00 = plt.subplot(gs00[0, 0])
         resource_dir = os.path.dirname(__file__)
-        logos = os.path.join(resource_dir, 'eddy_qc_logos.png')
+        logos = os.path.join(resource_dir, 'utils/eddy_qc_logos.png')
         img = mpimg.imread(logos)
         im = ax1_00.imshow(img, interpolation='none')
         ax1_00.axis('off')

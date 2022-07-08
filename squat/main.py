@@ -1,11 +1,12 @@
 #!/bin/env python
 """
-SQUAT (Study-wise QUality Assessment Tool)
+SQUAT: Study-wise QUality Assessment Tool
+
+Command line interface
 
 Matteo Bastiani, FMRIB, Oxford
 Martin Craig, SPMIC, Nottingham
 """
-import datetime
 import os
 import warnings
 import json
@@ -21,8 +22,7 @@ matplotlib.use('Agg')   # generate pdf output by default
 matplotlib.interactive(False)
 matplotlib.style.use('classic')
 
-from eddy_qc.squat import (squat_report, squat_var, squat_db, squat_update)
-from eddy_qc.utils import (utils, ref_page)
+from . import report, data, refs
 
 import argparse
 import sys
@@ -89,16 +89,16 @@ def main():
         subject_list = get_subjects(args.subjects)
 
         sys.stdout.write('Generating group data...')
-        group_data = squat_db.main(os.path.join(args.output, "group_data.json"), 'w', subject_list)
+        group_data = data.main(os.path.join(args.output, "group_data.json"), 'w', subject_list)
         sys.stdout.write('DONE\n')
     else:
-        group_data = squat_db.main(args.group_data, 'r')
+        group_data = data.main(args.group_data, 'r')
 
     if args.group_report:
         sys.stdout.write('Generating group QC report...')
         pdf = PdfPages(os.path.join(args.output, "group_report.pdf"))
-        ref_page.main(pdf)
-        squat_report.main(pdf, group_data)
+        refs.main(pdf)
+        report.main(pdf, group_data)
         pdf.close()
         sys.stdout.write('DONE\n')
     
@@ -114,8 +114,8 @@ def main():
                 raise ValueError(f"Could not read subject data for subject {subjdir}: {exc}")
             
             pdf = PdfPages(os.path.join(args.output, f"{subjid}_report.pdf"))
-            ref_page.main(pdf)
-            squat_report.main(pdf, group_data, subject_data)
+            refs.main(pdf)
+            report.main(pdf, group_data, subject_data)
         sys.stdout.write('DONE\n')
 
         # # Set the file's metadata via the PdfPages object:

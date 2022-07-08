@@ -1,4 +1,3 @@
-#!/usr/bin/env fslpython
 """
 SQUAT: Handle operations on the group JSON data file
 

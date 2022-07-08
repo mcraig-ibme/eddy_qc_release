@@ -1,5 +1,5 @@
 #!/usr/bin/env fslpython
 
 if __name__ == "__main__":
-    from eddy_qc.squat.squat import main
+    from squat.main import main
     main()
