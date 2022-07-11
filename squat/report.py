@@ -11,13 +11,11 @@ import seaborn
 seaborn.set()
 
 def save_page(pdf):
-    print("Saving page")
     plt.tight_layout(h_pad=1, pad=4)
     plt.savefig(pdf, format='pdf')
     plt.close()
 
 def new_page():
-    print("Starting new page")
     plt.figure(figsize=(8.27,11.69))   # Standard portrait A4 sizes
     plt.suptitle("SQUAT: Group report", fontsize=10, fontweight='bold')
 
@@ -25,20 +23,42 @@ def get_var(var, group_data, subject_data):
     if not isinstance(var, list):
         var = [var]
     try:
-        group_values = np.concatenate([group_data['qc_' + d] for d in var])
+        group_values = np.concatenate([group_data['qc_' + d] for d in var], axis=1)
+        #print(f"get_var: group values {var} {group_values}")
     except KeyError:
         print(f"WARNING: Variable not found: {var}")
         return [], []
 
+
     if subject_data is not None:
         try:
             subject_values = np.concatenate([np.atleast_1d(subject_data['qc_' + d]) for d in var])
+            #print(f"get_var: subject values {var} {subject_values}")
         except KeyError:
             print(f"WARNING: Variable not found for subject: {var}")
             subject_values = []
     else:
         subject_values = None
     return group_values, subject_values
+
+def show_table(table_rows, table_columns, table_idx, table_title, table_content, table_colours):
+    # Starting a new table - display the previous one first
+    ax = plt.subplot2grid((table_rows, table_columns), (table_idx//table_columns, table_idx % table_columns))
+    ax.axis('off')
+    ax.axis('tight')
+    ax.set_title(table_title, fontsize=12, fontweight='bold',loc='left')
+    tb = ax.table(
+        cellText=table_content, 
+        cellColours=table_colours,
+        loc='upper center',
+        cellLoc='left',
+        colWidths=[0.8, 0.2],
+        #rowLabels=[" . "] * len(table_content),
+        #rowColours=np.concatenate((eddy['mot_colour'], eddy['params_colour'][0:6]))
+    )
+    tb.auto_set_font_size(True)
+    #tb.set_fontsize(9)
+    tb.scale(1, 2)
 
 def main(pdf, report_def, db, s_data=None):
     """
@@ -123,22 +143,7 @@ def main(pdf, report_def, db, s_data=None):
                                 save_page(pdf)
                             new_page()
                         # Starting a new table - display the previous one first
-                        ax = plt.subplot2grid((table_rows, table_columns), (table_idx//table_columns, table_idx % table_columns))
-                        ax.axis('off')
-                        ax.axis('tight')
-                        ax.set_title(table_title, fontsize=12, fontweight='bold',loc='left')
-                        tb = ax.table(
-                            cellText=table_content, 
-                            cellColours=table_colours,
-                            loc='upper center',
-                            cellLoc='left',
-                            colWidths=[0.8, 0.2],
-                            #rowLabels=[" . "] * len(table_content),
-                            #rowColours=np.concatenate((eddy['mot_colour'], eddy['params_colour'][0:6]))
-                        )
-                        tb.auto_set_font_size(False)
-                        tb.set_fontsize(9)
-                        tb.scale(1,1.5)
+                        show_table(table_rows, table_columns, table_idx, table_title, table_content, table_colours)
                         table_idx += 1
                         table_content = []
                         table_colours = []
@@ -164,10 +169,15 @@ def main(pdf, report_def, db, s_data=None):
                     table_content.append([row_label, '%1.2f' % value])
 
                     zval = (value-mean[idx])/std[idx]
-                    print(row_label, value, mean[idx], std[idx], zval)
-                    colour_idx = np.clip(np.floor(np.abs(zval)), 0, 2).astype(int)
+                    if np.isnan(zval):
+                        colour_idx = 0
+                    else:
+                        colour_idx = np.clip(np.floor(np.abs(zval)), 0, 2).astype(int)
                     table_colours.append([colours[3], colours[colour_idx]])
 
+        # Show last table
+        if table_title is not None:
+            show_table(table_rows, table_columns, table_idx, table_title, table_content, table_colours)
         save_page(pdf)
             
     num_cols = max([len(plots) for plots in report])
@@ -205,6 +215,7 @@ def main(pdf, report_def, db, s_data=None):
             # Plot the data
             seaborn.violinplot(data=group_values, scale='width', width=0.5, palette='Set3', linewidth=1, inner='point', ax=ax)
             seaborn.despine(left=True, bottom=True, ax=ax)
+            ax.get_yaxis().get_major_formatter().set_useOffset(False)
 
             # Set other properties defined for the plot. Note that some properties can take their values
             # from other data in the group JSON file
