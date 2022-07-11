@@ -7,7 +7,7 @@ Martin Craig: SPMIC, Nottingham
 import json
 import os
 
-def main(fn, op, subjects=None):
+def main(fn, op, subject_datas=None):
     """
     Perform a database I/O operation:
     - read from .json file
@@ -19,13 +19,7 @@ def main(fn, op, subjects=None):
         - sList: Filename of subject list
     """
     if op == 'w':
-        for idx, subject in enumerate(subjects):
-            qc_json = os.path.join(subject, 'qc.json')
-            if not os.path.isfile(qc_json):
-                raise ValueError(qc_json + ' does not appear to be a valid qc.json file')
-            with open(qc_json) as qc_file:
-                subject_data = json.load(qc_file)
-            
+        for idx, subject_data in enumerate(subject_datas):
             # Collect list of data fields - anything starting data_
             data_fields = [f for f in subject_data if f.startswith("data_")]
 
@@ -38,8 +32,12 @@ def main(fn, op, subjects=None):
                 group_qc_fields = subject_qc_fields
                 group_qc_data = {k : [] for k in group_qc_fields}
             else:
-                if subject_qc_fields != group_qc_fields:
-                    raise ValueError(f'Inconsistency in QC fields for subject {idx}: {subject_qc_fields} vs {group_qc_fields}')
+                for k in subject_qc_fields:
+                    if k not in group_qc_fields:
+                        raise ValueError(f'Inconsistency in QC fields for subject {idx}: {k} not found in group data')
+                for k in group_qc_fields:
+                    if k not in subject_qc_fields:
+                        raise ValueError(f'Inconsistency in QC fields for subject {idx}: {k} not found in subject data')
 
             # Collect QC data from subject and add it to the group list
             for qc_field in group_qc_fields:
@@ -56,7 +54,7 @@ def main(fn, op, subjects=None):
         #=========================================================================================       
         db = {
             # data info - note taken from last subject read, assuming consistency
-            'data_num_subjects' : len(subjects),
+            'data_num_subjects' : len(subject_datas),
             'squat_report' : squat_report,
             #'data_protocol' : group_qc_data['data'],
         }
@@ -76,7 +74,8 @@ def main(fn, op, subjects=None):
         return db
 
     elif op == 'r':
-        if not os.path.isfile(fn):
-            raise ValueError(fn + ' does not appear to be a valid group_db.json file')
-        with open(fn, 'r') as fp:
-            return json.load(fp)
+        try:
+            with open(fn, 'r') as fp:
+                return json.load(fp)
+        except (IOError, json.JSONDecodeError) as exc:
+            raise ValueError("Could not read group data file: {fn} : {exc}")
