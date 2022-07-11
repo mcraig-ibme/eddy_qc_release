@@ -15,9 +15,9 @@ def save_page(pdf):
     plt.savefig(pdf, format='pdf')
     plt.close()
 
-def new_page():
+def new_page(title):
     plt.figure(figsize=(8.27,11.69))   # Standard portrait A4 sizes
-    plt.suptitle("SQUAT: Group report", fontsize=10, fontweight='bold')
+    plt.suptitle(title, fontsize=10, fontweight='bold')
 
 def get_var(var, group_data, subject_data):
     if not isinstance(var, list):
@@ -47,12 +47,15 @@ def show_table(table_rows, table_columns, table_idx, table_title, table_content,
     ax.axis('off')
     ax.axis('tight')
     ax.set_title(table_title, fontsize=12, fontweight='bold',loc='left')
+    c1len = max([len(str(c[0])) for c in table_content])
+    c2len = max([len(str(c[1])) for c in table_content])
+    col_prop = c1len / (c1len+c2len)
     tb = ax.table(
         cellText=table_content, 
         cellColours=table_colours,
         loc='upper center',
         cellLoc='left',
-        colWidths=[0.8, 0.2],
+        colWidths=[col_prop, 1-col_prop],
         #rowLabels=[" . "] * len(table_content),
         #rowColours=np.concatenate((eddy['mot_colour'], eddy['params_colour'][0:6]))
     )
@@ -60,7 +63,7 @@ def show_table(table_rows, table_columns, table_idx, table_title, table_content,
     #tb.set_fontsize(9)
     tb.scale(1, 2)
 
-def main(pdf, report_def, db, s_data=None):
+def main(pdf, report_def, db, s_data=None, subjid=None):
     """
     Generate page of the group report pdf that contains:
     - bar plots of the number of acquired volumes for each subject
@@ -75,6 +78,11 @@ def main(pdf, report_def, db, s_data=None):
         - s_data: single subject dictionary to update pdf
     """
     report = report_def.get("squat_report", {})
+    if s_data is None:
+        title = "SQUAT: Group report"
+    else:
+        title = f"SQUAT: Subject report {subjid}"
+
     rows_per_page = 3
 
     if False and "data_protocol" in db:
@@ -141,7 +149,7 @@ def main(pdf, report_def, db, s_data=None):
                         if table_idx % (table_rows*table_columns) == 0:
                             if table_idx > 0:
                                 save_page(pdf)
-                            new_page()
+                            new_page(title)
                         # Starting a new table - display the previous one first
                         show_table(table_rows, table_columns, table_idx, table_title, table_content, table_colours)
                         table_idx += 1
@@ -188,7 +196,7 @@ def main(pdf, report_def, db, s_data=None):
             if group_idx > 0:
                 # Format and save previous page
                 save_page(pdf)
-            new_page()
+            new_page(title)
 
         # Find out how many columns the defined plots will occupy
         group_num_cols = sum([plot.get("colspan", 1) for plot in plots])
@@ -216,6 +224,7 @@ def main(pdf, report_def, db, s_data=None):
             seaborn.violinplot(data=group_values, scale='width', width=0.5, palette='Set3', linewidth=1, inner='point', ax=ax)
             seaborn.despine(left=True, bottom=True, ax=ax)
             ax.get_yaxis().get_major_formatter().set_useOffset(False)
+            #ax.ticklabel_format(style='plain')
 
             # Set other properties defined for the plot. Note that some properties can take their values
             # from other data in the group JSON file
