@@ -51,6 +51,7 @@ def main():
     parser.add_argument('--subject-reports', action="store_true", default=False, help="Generate individual subject reports")
     parser.add_argument('--report-def', help="JSON report definition file")
     parser.add_argument('-o', '--output', default="squat", help='Output directory')
+    parser.add_argument('--overwrite', action="store_true", default=False, help='If specified, overwrite any existing output')
     args = parser.parse_args()
 
     if len(sys.argv) == 1:
@@ -72,10 +73,10 @@ def main():
         except (IOError, json.JSONDecodeError) as exc:
             raise ValueError(f"Could not read report definition from {report_def}: {exc}")
 
-    if os.path.exists(args.output):
+    if os.path.exists(args.output) and not args.overwrite:
         raise ValueError(f"Output directory {args.output} already exists - remove or specify a different name")
+    os.makedirs(args.output, exist_ok=True)
 
-    os.makedirs(args.output)
     if args.extract:
         subject_list = get_subjects(args.subjects)
 
@@ -107,6 +108,7 @@ def main():
             pdf = PdfPages(os.path.join(args.output, f"{subjid}_report.pdf"))
             refs.main(pdf)
             report.main(pdf, report_def, group_data, subject_data)
+            pdf.close()
         sys.stdout.write('DONE\n')
 
         # # Set the file's metadata via the PdfPages object:
