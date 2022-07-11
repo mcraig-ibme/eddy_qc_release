@@ -38,7 +38,7 @@ def get_subjects(subjdir, fname):
             raise ValueError(f"Failed to read subject IDs from {fname}: {exc}")
     else:
         try:
-            return os.listdir(subjdir)
+            return sorted(os.listdir(subjdir))
         except IOError as exc:
             raise ValueError(f"Failed to find any subject directories in {subjdir}: {exc}")
 
@@ -121,15 +121,6 @@ def main():
             report.main(pdf, report_def, group_data, subject_data, subjid)
             pdf.close()
         sys.stdout.write('DONE\n')
-
-        # # Set the file's metadata via the PdfPages object:
-        # d = pp.infodict()
-        # d['Title'] = 'eddy_squat QC report'
-        # d['Author'] = u'Matteo Bastiani'
-        # d['Subject'] = 'group QC report'
-        # d['Keywords'] = 'QC dMRI'
-        # d['CreationDate'] = datetime.datetime.today()
-        # d['ModDate'] = datetime.datetime.today()
 
 if __name__ == "__main__":
     main()

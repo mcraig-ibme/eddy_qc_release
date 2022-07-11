@@ -4,9 +4,11 @@ SQUAT - Individual or group report
 Matteo Bastiani, FMRIB, Oxford
 Martin Craig, SPMIC, Nottingham
 """
+import datetime
+
 import numpy as np
 import matplotlib.pyplot as plt
-from pylab import MaxNLocator
+
 import seaborn
 seaborn.set()
 
@@ -24,7 +26,6 @@ def get_var(var, group_data, subject_data):
         var = [var]
     try:
         group_values = np.concatenate([group_data['qc_' + d] for d in var], axis=1)
-        #print(f"get_var: group values {var} {group_values}")
     except KeyError:
         print(f"WARNING: Variable not found: {var}")
         return [], []
@@ -33,7 +34,6 @@ def get_var(var, group_data, subject_data):
     if subject_data is not None:
         try:
             subject_values = np.concatenate([np.atleast_1d(subject_data['qc_' + d]) for d in var])
-            #print(f"get_var: subject values {var} {subject_values}")
         except KeyError:
             print(f"WARNING: Variable not found for subject: {var}")
             subject_values = []
@@ -238,6 +238,15 @@ def main(pdf, report_def, db, s_data=None, subjid=None):
             # Finally, if we have an individual subject's data, mark their data point on the plot with a white star
             if s_data is not None:
                 ax.scatter(range(len(subject_values)), subject_values, s=100, marker='*', c='w', edgecolors='k', linewidths=1)
+
+    # Set the file's metadata via the PdfPages object:
+    d = pdf.infodict()
+    d['Title'] = 'SQUAT QC report'
+    d['Author'] = u'SQUAT'
+    d['Subject'] = title
+    d['Keywords'] = 'QC'
+    d['CreationDate'] = datetime.datetime.today()
+    d['ModDate'] = datetime.datetime.today()
 
     # Save last page
     save_page(pdf)
