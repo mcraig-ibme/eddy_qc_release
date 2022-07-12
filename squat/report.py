@@ -24,7 +24,7 @@ class Report():
         :param subject_data: Optional single-subject QC data dictionary
         :param subjid: Optional ID for subject whose data we are using
         """
-        self.report_def = report_def.get("squat_report", {})
+        self.report_def = report_def.get("squat_report", [])
         if not self.report_def:
             raise ValueError("No report definition found")
         self.group_data = group_data
@@ -224,51 +224,6 @@ class Report():
         
         :param pdf: PdfPages object
         """
-        if False and "data_protocol" in db:
-            # Bar plot of number of acquired volumes per subject
-            # FIXME eddy specific and not functional, just capturing code from SQUAD
-            self.report_def.insert(0, [
-                {
-                    "plottype" : "barplot",
-                    "x" : np.arange(1, 1+db['data_num_subjects']),
-                    "y" : np.sum(db['data_protocol'], axis=1),
-                    "color" : "blue",
-                }
-            ])
-            
-            # n_vols, counts = np.unique(np.sum(db['data_protocol'], axis=1), return_counts=True)
-            # n_vols_mode = n_vols[np.argmax(counts)]
-            # n_vols_ol = 1 + np.where(np.sum(db['data_protocol'], axis=1) != n_vols_mode )[0] 
-            # ax1_01.set_xticks(n_vols_ol)
-            # ax1_01.set_xticklabels(n_vols_ol)
-            # ax1_01.tick_params(labelsize=6)
-            # plt.setp(ax1_01.get_xticklabels(), rotation=90)
-            # ax1_01.set_ylim(bottom=0)
-            # ax1_01.set_xlabel("Subject")
-            # ax1_01.set_ylabel("No. acquired volumes")
-
-        if False and grp is not False:
-            # Plot of distribution of grouping variable
-            # FIXME not functional, just capturing info from SQUAD code
-            data = grp[grp.dtype.names[0]][1:]
-            self.report_def.insert(0, [
-                {
-                    "data" : data,
-                    "plottype" : "distplot",
-                    "bins" : np.arange(-1.5+round(min(data)),1.5+round(max(data))),
-                    "kde" : False,
-                    "norm_hist" : False,
-                    "vertical" : True,
-                    "ylabel" : grp.dtype.names[0],
-                    "xlabel" : "N",
-                }
-            ])
-            
-            # ax1_00.set_xlim([-1+round(min(grp[grp.dtype.names[0]][1:])),1+round(max(grp[grp.dtype.names[0]][1:]))])
-            # ax1_00.set_xticks(np.unique(np.round(grp[grp.dtype.names[0]])))
-            #ax1_00.xaxis.set_major_locator(MaxNLocator(integer=True))
-            #ax1_00.set_xticks([0, np.max(ax1_00.get_xticks())])
-
         if self.subject_data is not None:
             self._generate_subject_tables(pdf)
 
