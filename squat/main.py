@@ -11,18 +11,16 @@ import os
 import warnings
 import json
 
-import numpy as np
-
 import matplotlib
 import matplotlib.style
-from matplotlib.backends.backend_pdf import PdfPages
 
 warnings.filterwarnings("ignore")
 matplotlib.use('Agg')   # generate pdf output by default
 matplotlib.interactive(False)
 matplotlib.style.use('classic')
 
-from . import report, data, refs
+from .report import Report
+from .data import GroupData
 
 import argparse
 import sys
@@ -96,19 +94,17 @@ def main():
     if args.extract:
         sys.stdout.write('Generating group data...')
         sys.stdout.flush()
-        group_data = data.GroupData(subject_datas=subjqcdata)
+        group_data = GroupData(subject_datas=subjqcdata)
         group_data.write(os.path.join(args.output, "group_data.json"))
         sys.stdout.write('DONE\n')
     else:
-        group_data = data.GroupData(fname=args.group_data)
+        group_data = GroupData(fname=args.group_data)
 
     if args.group_report:
         sys.stdout.write('Generating group QC report...')
         sys.stdout.flush()
-        pdf = PdfPages(os.path.join(args.output, "group_report.pdf"))
-        #refs.main(pdf)
-        report.main(pdf, report_def, group_data)
-        pdf.close()
+        report = Report(report_def, group_data)
+        report.save(os.path.join(args.output, "group_report.pdf"))
         sys.stdout.write('DONE\n')
     
     if args.subject_reports:
@@ -117,10 +113,8 @@ def main():
         for subjid, subject_data in zip(subjids, subjqcdata):
             sys.stdout.write(subjid + " ")
             sys.stdout.flush()
-            pdf = PdfPages(os.path.join(args.output, f"{subjid}_report.pdf"))
-            #refs.main(pdf)
-            report.main(pdf, report_def, group_data, subject_data, subjid)
-            pdf.close()
+            report = Report(report_def, group_data, subject_data, subjid)
+            report.save(os.path.join(args.output, f"{subjid}_report.pdf"))
         sys.stdout.write('DONE\n')
 
 if __name__ == "__main__":
