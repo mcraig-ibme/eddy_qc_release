@@ -32,13 +32,13 @@ class GroupData(dict):
 
         :param subject_datas: Sequence of single subject QC data dictionaries
         """
+        data_fields, group_qc_fields = [], []
         for idx, subject_data in enumerate(subject_datas):
             # Collect list of data fields - anything starting data_
             data_fields = [f for f in subject_data if f.startswith("data_")]
 
             # Collect list of QC fields - look for any keys starting with qc_<name>
             subject_qc_fields = [f[3:] for f in subject_data if f.startswith("qc_")]
-            squat_report = subject_data.get("squat_report", {})
             
             # Check QC fields match for all subjects
             if idx == 0:
@@ -68,7 +68,6 @@ class GroupData(dict):
         self.update({
             # data info - note taken from last subject read, assuming consistency
             'data_num_subjects' : len(subject_datas),
-            'squat_report' : squat_report,
             #'data_protocol' : group_qc_data['data'],
         })
 
