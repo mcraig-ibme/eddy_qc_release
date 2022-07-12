@@ -76,7 +76,7 @@ def main():
             with open(args.report_def, "r") as report_def_file:
                 report_def = json.load(report_def_file)
         except (IOError, json.JSONDecodeError) as exc:
-            raise ValueError(f"Could not read report definition from {report_def}: {exc}")
+            raise ValueError(f"Could not read report definition from {args.report_def}: {exc}")
 
     if os.path.exists(args.output) and not args.overwrite:
         raise ValueError(f"Output directory {args.output} already exists - remove or specify a different name")
@@ -96,10 +96,11 @@ def main():
     if args.extract:
         sys.stdout.write('Generating group data...')
         sys.stdout.flush()
-        group_data = data.main(os.path.join(args.output, "group_data.json"), 'w', subjqcdata)
+        group_data = data.GroupData(subject_datas=subjqcdata)
+        group_data.write(os.path.join(args.output, "group_data.json"))
         sys.stdout.write('DONE\n')
     else:
-        group_data = data.main(args.group_data, 'r')
+        group_data = data.GroupData(fname=args.group_data)
 
     if args.group_report:
         sys.stdout.write('Generating group QC report...')

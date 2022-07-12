@@ -5,20 +5,33 @@ Matteo Bastiani: FMRIB, Oxford
 Martin Craig: SPMIC, Nottingham
 """
 import json
-import os
 
-def main(fn, op, subject_datas=None):
-    """
-    Perform a database I/O operation:
-    - read from .json file
-    - write to .json file
-    
-    Arguments:
-        - fn: Filename of JSON DB to create/read
-        - op: 'r' to read, 'w' to write
-        - sList: Filename of subject list
-    """
-    if op == 'w':
+class GroupData(dict):
+
+    def __init__(self, fname=None, subject_datas=None):
+        if fname is None and subject_datas is None:
+            raise ValueError("Must provide filename of existing group data or list of subject data")
+        elif fname is not None and subject_datas is not None:
+            raise ValueError("Can't provide both filename of existing group data and list of subject data")
+        
+        if fname is not None:
+            self._read_json(fname)
+        else:
+            self._read_subject_data(subject_datas)
+
+    def write(self, fname):
+        """
+        Write group data to JSON file
+        """
+        with open(fname, 'w') as f:
+            json.dump(self, f, sort_keys=True, indent=4, separators=(',', ': '))
+
+    def _read_subject_data(self, subject_datas):
+        """
+        Read single-subject QC data and combine it into group data
+
+        :param subject_datas: Sequence of single subject QC data dictionaries
+        """
         for idx, subject_data in enumerate(subject_datas):
             # Collect list of data fields - anything starting data_
             data_fields = [f for f in subject_data if f.startswith("data_")]
@@ -52,30 +65,24 @@ def main(fn, op, subject_datas=None):
         #=========================================================================================
         # Database creation as a dictionary
         #=========================================================================================       
-        db = {
+        self.update({
             # data info - note taken from last subject read, assuming consistency
             'data_num_subjects' : len(subject_datas),
             'squat_report' : squat_report,
             #'data_protocol' : group_qc_data['data'],
-        }
+        })
 
         # FIXME assuming data fields match for all subjects and can take from last subject
         # - should check for this
         for data_field in data_fields:
-            db[data_field] = subject_data[data_field]
+            self[data_field] = subject_data[data_field]
 
         for qc_field in group_qc_fields:
-            db[f"qc_{qc_field}"] = group_qc_data[qc_field]
+            self[f"qc_{qc_field}"] = group_qc_data[qc_field]
 
-
-        with open(fn, 'w') as fp:
-            json.dump(db, fp, sort_keys=True, indent=4, separators=(',', ': '))
-    
-        return db
-
-    elif op == 'r':
+    def _read_json(self, fname):
         try:
-            with open(fn, 'r') as fp:
-                return json.load(fp)
+            with open(fname, 'r') as f:
+                self.update(json.load(f))
         except (IOError, json.JSONDecodeError) as exc:
-            raise ValueError("Could not read group data file: {fn} : {exc}")
+            raise ValueError("Could not read group data file: {fname} : {exc}")
