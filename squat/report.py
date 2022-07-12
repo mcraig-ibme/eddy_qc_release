@@ -184,6 +184,9 @@ class Report():
                     print(f"WARNING: Plot variable not defined {plot}")
                     continue
                 group_values, subject_values = self._get_var(data_item)
+                if not group_values:
+                    # Skip plot if data could not be found
+                    continue
 
                 # If there are fewer plots than columns, make initial plots span an extra column
                 colspan = plot.pop("colspan", 1) 
