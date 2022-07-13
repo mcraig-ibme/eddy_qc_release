@@ -20,7 +20,7 @@ matplotlib.interactive(False)
 matplotlib.style.use('classic')
 
 from .report import Report
-from .data import GroupData
+from .data import GroupData, SubjectData, read_json
 
 import argparse
 import sys
@@ -69,12 +69,7 @@ def main():
     if args.group_report or args.subject_reports:
         if not args.report_def:
             raise ValueError("Report definition not given (--report-def)")
-
-        try:
-            with open(args.report_def, "r") as report_def_file:
-                report_def = json.load(report_def_file)
-        except (IOError, json.JSONDecodeError) as exc:
-            raise ValueError(f"Could not read report definition from {args.report_def}: {exc}")
+        report_def = read_json(args.report_def, "report definition")
 
     if os.path.exists(args.output) and not args.overwrite:
         raise ValueError(f"Output directory {args.output} already exists - remove or specify a different name")
@@ -85,11 +80,7 @@ def main():
         subjqcdata = []
         for subjid in subjids:
             subjdir = os.path.join(args.subjdir, subjid)
-            try:
-                with open(os.path.join(subjdir, args.qcpath)) as qc_file:
-                    subjqcdata.append(json.load(qc_file))
-            except IOError as exc:
-                raise ValueError(f"Could not read subject data for subject {subjid}: {exc}")
+            subjqcdata.append(SubjectData(subjid, os.path.join(subjdir, args.qcpath)))
 
     if args.extract:
         sys.stdout.write('Generating group data...')
@@ -110,11 +101,11 @@ def main():
     if args.subject_reports:
         sys.stdout.write('Generating subject QC reports...')
         sys.stdout.flush()
-        for subjid, subject_data in zip(subjids, subjqcdata):
-            sys.stdout.write(subjid + " ")
+        for subject_data in subjqcdata:
+            sys.stdout.write(subject_data.subjid + " ")
             sys.stdout.flush()
-            report = Report(report_def, group_data, subject_data, subjid)
-            report.save(os.path.join(args.output, f"{subjid}_report.pdf"))
+            report = Report(report_def, group_data, subject_data)
+            report.save(os.path.join(args.output, f"{subject_data.subjid}_report.pdf"))
         sys.stdout.write('DONE\n')
 
 if __name__ == "__main__":

@@ -15,25 +15,23 @@ seaborn.set()
 
 class Report():
 
-    def __init__(self, report_def, group_data, subject_data=None, subjid=None):
+    def __init__(self, report_def, group_data, subject_data=None):
         """
         Individual or group report constructor
 
         :param report_def: Dictionary definition of report, must contain key: squat_report
-        :param group_data: Dictionary containing group QC data
-        :param subject_data: Optional single-subject QC data dictionary
-        :param subjid: Optional ID for subject whose data we are using
+        :param group_data: Group QC data
+        :param subject_data: Optional single-subject QC data
         """
         self.report_def = report_def.get("squat_report", [])
         if not self.report_def:
             raise ValueError("No report definition found")
         self.group_data = group_data
         self.subject_data = subject_data
-        self.subjid = subjid
         if subject_data is None:
             self.title = "SQUAT: Group report"
         else:
-            self.title = f"SQUAT: Subject report {subjid}"
+            self.title = f"SQUAT: Subject report {subject_data.subjid}"
 
         self.plot_rows_per_page = 3
         self.table_rows_per_page = 4
@@ -184,7 +182,7 @@ class Report():
                     print(f"WARNING: Plot variable not defined {plot}")
                     continue
                 group_values, subject_values = self._get_var(data_item)
-                if not group_values:
+                if group_values is None or len(group_values) == 0:
                     # Skip plot if data could not be found
                     continue
 
