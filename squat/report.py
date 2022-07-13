@@ -13,21 +13,36 @@ from matplotlib.backends.backend_pdf import PdfPages
 import seaborn
 seaborn.set()
 
+RED = [0.8, 0.20, 0.20, 0.5]
+AMBER = [0.91, 0.71, 0.09, 0.5]
+GREEN = [0.18, 0.79, 0.22, 0.5]
+NOCOLOUR = [0, 0, 0, 0]
+
 class Report():
 
-    def __init__(self, report_def, group_data, subject_data=None):
+    def __init__(self, report_def, group_data, subject_data=None, comparison_dists={}, amber_sigma=1, red_sigma=2):
         """
         Individual or group report constructor
 
         :param report_def: Dictionary definition of report, must contain key: squat_report
         :param group_data: Group QC data
         :param subject_data: Optional single-subject QC data
+        :param comparison_dists: Optional dictionary for outlier flagging. Maps QC variable
+                                 names to tuple of (mean, std).
+        :param amber_sigma: How many std.devs away from mean to mark a value as amber
+        :param red_sigma: How many std.devs away from mean to mark a value as red
         """
         self.report_def = report_def.get("squat_report", [])
         if not self.report_def:
             raise ValueError("No report definition found")
         self.group_data = group_data
         self.subject_data = subject_data
+        if comparison_dists:
+            self.comparison_dists = comparison_dists
+        else:
+            self.comparison_dists = self._get_var_dists()
+        self.outlier_colours = [(red_sigma, RED), (amber_sigma, AMBER)]
+
         if subject_data is None:
             self.title = "SQUAT: Group report"
         else:
@@ -36,8 +51,6 @@ class Report():
         self.plot_rows_per_page = 3
         self.table_rows_per_page = 4
         self.table_columns = 2
-        # Colormap to mark outliers in the summary tables
-        self.colours = np.array([[0.18, 0.79, 0.22, 0.5], [0.91, 0.71, 0.09, 0.5], [0.8, 0.20, 0.20, 0.5], [0, 0, 0, 0]])
 
     def save(self, fname):
         """
@@ -49,6 +62,22 @@ class Report():
         self._generate(pdf)
         pdf.close()
     
+    def _get_var_dists(self):
+        ret = {}
+        for var in self.group_data.qc_fields:
+            values = self.group_data.get_data(var)
+            ret[var] = np.mean(values), np.std(values) + 1e-10
+        return ret
+
+    def _get_outlier_colour(self, value, var_name):
+        mean, std = self.comparison_dists[var_name]
+        #mean, std = np.mean(comparison_values), np.std(comparison_values) + 1e-10
+        value_sigma = np.abs((value-mean)/std)
+        for sigma, colour in self.outlier_colours:
+            if value_sigma > sigma:
+                return colour
+        return GREEN
+
     def _save_page(self, pdf):
         plt.tight_layout(h_pad=1, pad=4)
         plt.savefig(pdf, format='pdf')
@@ -58,24 +87,24 @@ class Report():
         plt.figure(figsize=(8.27,11.69))   # Standard portrait A4 sizes
         plt.suptitle(self.title, fontsize=10, fontweight='bold')
 
-    def _get_var(self, var):
-        if not isinstance(var, list):
-            var = [var]
-        try:
-            group_values = np.concatenate([self.group_data['qc_' + d] for d in var], axis=1)
-        except KeyError:
-            print(f"WARNING: Variable not found: {var}")
-            return [], []
+    def _get_data(self, vars):
+        if not isinstance(vars, list):
+            vars = [vars]
 
+        group_values, subject_values, names = [], [], []
+        for var in vars:
+            group_values.append(self.group_data.get_data(var))
+            if self.subject_data is not None:
+                subject_values.append(self.subject_data.get_data(var))
+            names += [var] * group_values[-1].shape[1]
+
+        group_values = np.concatenate(group_values, axis=1)
         if self.subject_data is not None:
-            try:
-                subject_values = np.concatenate([np.atleast_1d(self.subject_data['qc_' + d]) for d in var])
-            except KeyError:
-                print(f"WARNING: Variable not found for subject: {var}")
-                subject_values = []
+            subject_values = np.concatenate(subject_values)
         else:
             subject_values = None
-        return group_values, subject_values
+
+        return group_values, subject_values, names
 
     def _show_table(self, table_idx, table_title, table_content, table_colours):
         """
@@ -94,11 +123,8 @@ class Report():
             loc='upper center',
             cellLoc='left',
             colWidths=[col_prop, 1-col_prop],
-            #rowLabels=[" . "] * len(table_content),
-            #rowColours=np.concatenate((eddy['mot_colour'], eddy['params_colour'][0:6]))
         )
         tb.auto_set_font_size(True)
-        #tb.set_fontsize(9)
         tb.scale(1, 2)
 
     def _generate_subject_tables(self, pdf):
@@ -126,30 +152,27 @@ class Report():
                     table_title = new_table_title
 
                 # Get the data variable and add all values to the table with appropriate label
-                data_item = plot.pop("var", None)
-                if data_item is None:
-                    print(f"WARNING: Variable not defined {plot}")
+                vars = plot.pop("var", None)
+                if vars is None:
+                    print(f"WARNING: No variables defined for plot {plot}")
                     continue
-                group_values, data_values = self._get_var(data_item)
-                mean = np.atleast_1d(np.mean(group_values, axis=0) + 1e-10)
-                std = np.atleast_1d(np.std(group_values, axis=0) + 1e-10)
+
+                if "xticklabels" in plot:
+                    xlabels = plot["xticklabels"]
+                    if isinstance(xlabels, str):
+                        xlabels = self.group_data[xlabels]
+                else:
+                    xlabels = None
+
+                group_values, data_values, var_names = self._get_data(vars)
                 for idx, value in enumerate(data_values):
                     row_label = plot.get("title", "")
-                    if "xticklabels" in plot:
-                        xlabels = plot["xticklabels"]
-                        if isinstance(xlabels, str):
-                            xlabels = self.group_data[xlabels]
+                    if xlabels:
                         row_label += ": %s" % xlabels[idx]
                     if "ylabel" in plot:
                         row_label += " (%s)" % plot["ylabel"]
                     table_content.append([row_label, '%1.2f' % value])
-
-                    zval = (value-mean[idx])/std[idx]
-                    if np.isnan(zval):
-                        colour_idx = 0
-                    else:
-                        colour_idx = np.clip(np.floor(np.abs(zval)), 0, 2).astype(int)
-                    table_colours.append([self.colours[3], self.colours[colour_idx]])
+                    table_colours.append([NOCOLOUR, self._get_outlier_colour(value, var_names[idx])])
 
         # Show last table
         if table_title is not None:
@@ -181,7 +204,7 @@ class Report():
                 if data_item is None:
                     print(f"WARNING: Plot variable not defined {plot}")
                     continue
-                group_values, subject_values = self._get_var(data_item)
+                group_values, subject_values, var_names = self._get_data(data_item)
                 if group_values is None or len(group_values) == 0:
                     # Skip plot if data could not be found
                     continue

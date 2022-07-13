@@ -53,6 +53,9 @@ def main():
     parser.add_argument('--group-report', action="store_true", default=False, help="Generate group report")
     parser.add_argument('--subject-reports', action="store_true", default=False, help="Generate individual subject reports")
     parser.add_argument('--report-def', help="JSON report definition file")
+    parser.add_argument('--comparison-dists', help="JSON file containing mapping from variable name to distribution mean/std from some external group")
+    parser.add_argument('--amber-sigma', type=float, default=1, help="Number of standard deviations away from the mean for a value to be flagged as an 'amber' outlier")
+    parser.add_argument('--red-sigma', type=float, default=2, help="Number of standard deviations away from the mean for a value to be flagged as a 'red' outlier")
     parser.add_argument('-o', '--output', default="squat", help='Output directory')
     parser.add_argument('--overwrite', action="store_true", default=False, help='If specified, overwrite any existing output')
     args = parser.parse_args()
@@ -70,6 +73,9 @@ def main():
         if not args.report_def:
             raise ValueError("Report definition not given (--report-def)")
         report_def = read_json(args.report_def, "report definition")
+
+    if args.comparison_dists:
+        args.comparison_dists = read_json(args.comparison_dists)
 
     if os.path.exists(args.output) and not args.overwrite:
         raise ValueError(f"Output directory {args.output} already exists - remove or specify a different name")
@@ -104,7 +110,7 @@ def main():
         for subject_data in subjqcdata:
             sys.stdout.write(subject_data.subjid + " ")
             sys.stdout.flush()
-            report = Report(report_def, group_data, subject_data)
+            report = Report(report_def, group_data, subject_data, comparison_dists=args.comparison_dists, red_sigma=args.red_sigma, amber_sigma=args.amber_sigma)
             report.save(os.path.join(args.output, f"{subject_data.subjid}_report.pdf"))
         sys.stdout.write('DONE\n')
 
