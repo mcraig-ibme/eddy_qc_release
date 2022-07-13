@@ -6,10 +6,11 @@ import pytest
 
 from squat.data import GroupData, SubjectData
 
-def test_no_input_exc():
-    with pytest.raises(ValueError):
-        data = GroupData()
-       
+def test_no_input():
+    data = GroupData()
+    assert(len(data) == 1)
+    assert(data["data_num_subjects"] == 0)
+
 def test_file_and_subjdata_exc():
     with pytest.raises(ValueError):
         data = GroupData(fname="fish", subject_datas=[])
