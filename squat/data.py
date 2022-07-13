@@ -6,6 +6,8 @@ Martin Craig: SPMIC, Nottingham
 """
 import json
 
+import numpy as np
+
 def _check_consistent(subjid, subject_fields, group_fields):
     not_in_group = [k for k in subject_fields if k not in group_fields]
     not_in_subject = [k for k in group_fields if k not in subject_fields]
@@ -34,18 +36,41 @@ class SubjectData(dict):
         # Collect list of QC fields - look for any keys starting with qc_<name>
         self.qc_fields = [f[3:] for f in self if f.startswith("qc_")]
 
+    def get_data(self, var):
+        """
+        Get data values for this subject
+
+        :param vars: Name of QC variable (without the qc_ prefix) or list of variable names
+        :return: 1D Numpy array of values, empty if any of the variables could not be found
+        """
+        try:
+            return np.atleast_1d(self['qc_' + var])
+        except KeyError:
+            print(f"WARNING: Missing variables for subject {self.subjid} - looking for {vars}")
+            return np.atleast_1d([])
+
 class GroupData(dict):
-    def __init__(self, fname=None, subject_datas=None):
+    def __init__(self, fname=None, subject_datas=[]):
         dict.__init__(self)
-        if fname is None and subject_datas is None:
-            raise ValueError("Must provide filename of existing group data or list of subject data")
-        elif fname is not None and subject_datas is not None:
+        if fname and subject_datas:
             raise ValueError("Can't provide both filename of existing group data and list of subject data")
-        
-        if fname is not None:
+
+        self._read_subject_data(subject_datas)
+        if fname:
             self.update(read_json(fname, "group"))
-        else:
-            self._read_subject_data(subject_datas)
+
+    def get_data(self, var):
+        """
+        Get group data values
+
+        :param vars: Name of QC variable (without the qc_ prefix) or list of variable names
+        :return: 2D Numpy array of values shape [NSUBJS, NVALS], empty if any of the variables could not be found
+        """
+        try:
+            return np.atleast_2d(self['qc_' + var])
+        except KeyError:
+            print(f"WARNING: Missing variables in group data - looking for {vars}")
+            return np.atleast_2d([])
 
     def write(self, fname):
         """
@@ -60,19 +85,19 @@ class GroupData(dict):
 
         :param subject_datas: Sequence of single subject QC data dictionaries
         """
-        group_data_fields, group_qc_fields = [], []
+        self.data_fields, self.qc_fields = [], []
         for idx, subject_data in enumerate(subject_datas):
-            # Check QC fields match for all subjects
+            # Check QC and data fields match for all subjects
             if idx == 0:
-                group_qc_fields = subject_data.qc_fields
-                group_data_fields = subject_data.data_fields
-                group_qc_data = {k : [] for k in group_qc_fields}
+                self.qc_fields = subject_data.qc_fields
+                self.data_fields = subject_data.data_fields
+                group_qc_data = {k : [] for k in self.qc_fields}
             else:
-                _check_consistent(subject_data.subjid, subject_data.qc_fields, group_qc_fields)
-                _check_consistent(subject_data.subjid, subject_data.data_fields, group_data_fields)
+                _check_consistent(subject_data.subjid, subject_data.qc_fields, self.qc_fields)
+                _check_consistent(subject_data.subjid, subject_data.data_fields, self.data_fields)
 
             # Collect QC data from subject and add it to the group list
-            for qc_field in group_qc_fields:
+            for qc_field in self.qc_fields:
                 subj_qc_data = []
                 value = subject_data["qc_" + qc_field]
                 if isinstance(value, list):
@@ -89,8 +114,8 @@ class GroupData(dict):
 
         # FIXME assuming data fields match for all subjects and can take from last subject
         # - should check for this
-        for data_field in group_data_fields:
+        for data_field in self.data_fields:
             self[data_field] = subject_data[data_field]
 
-        for qc_field in group_qc_fields:
+        for qc_field in self.qc_fields:
             self[f"qc_{qc_field}"] = group_qc_data[qc_field]
