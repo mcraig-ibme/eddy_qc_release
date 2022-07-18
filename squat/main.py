@@ -26,6 +26,7 @@ import argparse
 import sys
 
 from ._version import __version__
+from .test.data import generate_test_data
 
 def get_subjects(subjdir, fname):
     if fname:       
@@ -58,13 +59,15 @@ def main():
     parser.add_argument('--red-sigma', type=float, default=2, help="Number of standard deviations away from the mean for a value to be flagged as a 'red' outlier")
     parser.add_argument('-o', '--output', default="squat", help='Output directory')
     parser.add_argument('--overwrite', action="store_true", default=False, help='If specified, overwrite any existing output')
+    parser.add_argument('--generate-test-data', action="store_true", default=False, help='Generate test data')
+    parser.add_argument('--generate-test-data-n', type=int, default=10, help='Generate test data for for this number of subjects')
     args = parser.parse_args()
 
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
 
-    if not args.extract and not args.group_data:
+    if not args.extract and not args.group_data and not args.generate_test_data:
         raise ValueError("Must specify either --extract or provide a previously extracted group data file with --group-data")
     elif args.extract and args.group_data:
         raise ValueError("Cannot specify --extract and --group-data at the same time")
@@ -81,12 +84,22 @@ def main():
         raise ValueError(f"Output directory {args.output} already exists - remove or specify a different name")
     os.makedirs(args.output, exist_ok=True)
 
-    if args.extract or args.subject_reports:
+    if args.extract or args.subject_reports or args.generate_test_data:
         subjids = get_subjects(args.subjdir, args.subjects)
         subjqcdata = []
         for subjid in subjids:
             subjdir = os.path.join(args.subjdir, subjid)
             subjqcdata.append(SubjectData(subjid, [os.path.join(subjdir, qcpath) for qcpath in args.qcpaths]))
+
+    if args.generate_test_data:
+        sys.stdout.write('Generating test data for {args.generate_test_data_n} subjects...')
+        sys.stdout.flush()
+        if len(subjqcdata) == 0:
+            raise ValueError("Can't generate test data without a sample subject")
+        if len(subjqcdata) != 1:
+            sys.stdout.write("WARNING: more than one subject found, will use first subject as base...")
+        generate_test_data(args.generate_test_data_n, args.output, subjqcdata[0])
+        sys.stdout.write('DONE\n')
 
     if args.extract:
         sys.stdout.write('Generating group data...')
