@@ -24,10 +24,10 @@ def read_json(fname, desc):
         raise ValueError(f"Could not read {desc} data file: {fname} : {exc}")
 
 class SubjectData(dict):
-    def __init__(self, subjid, fname=None, **kwargs):
+    def __init__(self, subjid, fnames=[], **kwargs):
         dict.__init__(self, **kwargs)
         self.subjid = subjid
-        if fname:
+        for fname in fnames:
             self.update(read_json(fname, "subject QC"))
     
         # Collect list of data fields - anything starting data_

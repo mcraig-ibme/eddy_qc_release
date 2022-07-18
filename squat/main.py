@@ -47,7 +47,7 @@ def main():
     parser = argparse.ArgumentParser('Generalised Study-wise QUality Assessment Tool', add_help=True)
     parser.add_argument('--subjdir', default=".", help='Path to directory containing single-subject output')
     parser.add_argument('--subjects', help='Path to text file containing a list of subject IDs. If not specified will use all subdirectories of --subjdir')
-    parser.add_argument('--qcpath', default="qc.json", help='Path to QC output file relative to subject directory')
+    parser.add_argument('--qcpaths', default=["qc.json"], nargs="+", help='Paths to all JSON QC output files relative to subject directory')
     parser.add_argument('--extract', action="store_true", default=False, help="Extract data from single-subject QC output into group data file")
     parser.add_argument('--group-data', help="JSON file containing previously extracted group QC data")
     parser.add_argument('--group-report', action="store_true", default=False, help="Generate group report")
@@ -86,7 +86,7 @@ def main():
         subjqcdata = []
         for subjid in subjids:
             subjdir = os.path.join(args.subjdir, subjid)
-            subjqcdata.append(SubjectData(subjid, os.path.join(subjdir, args.qcpath)))
+            subjqcdata.append(SubjectData(subjid, [os.path.join(subjdir, qcpath) for qcpath in args.qcpaths]))
 
     if args.extract:
         sys.stdout.write('Generating group data...')
