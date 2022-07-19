@@ -49,7 +49,7 @@ class Report():
             self.title = f"SQUAT: Subject report {subject_data.subjid}"
 
         self.plot_rows_per_page = 3
-        self.table_rows_per_page = 4
+        self.table_rows_per_page = 1
         self.table_columns = 2
 
     def save(self, fname):
@@ -132,21 +132,20 @@ class Report():
         Generate tables for subject report including RAG flagging of outliers
         """
         table_idx, table_title, table_content, table_colours = 0, None, [], []
+        self._new_page()
         for group_idx, plots in enumerate(self.report_def):
-            # Get the axes on which to create the table FIXME count how many distinct tables
-
             for plot_idx, plot in enumerate(plots):
                 plot = dict(plot)
                 new_table_title = plot.get("group_title", table_title)
                 if new_table_title != table_title:
                     if table_title is not None:
-                        if table_idx % (self.table_rows_per_page*self.table_columns) == 0:
-                            if table_idx > 0:
-                                self._save_page(pdf)
-                            self._new_page()
-                        # Starting a new table - display the previous one first
+                        # We have a previous table - display this first
                         self._show_table(table_idx, table_title, table_content, table_colours)
                         table_idx += 1
+                        if table_idx % (self.table_rows_per_page*self.table_columns) == 0:
+                            self._save_page(pdf)
+                            self._new_page()
+                            table_idx = 0
                         table_content = []
                         table_colours = []
                     table_title = new_table_title
@@ -232,7 +231,7 @@ class Report():
                     setter = getattr(ax, f"set_{arg}", None)
                     if setter is not None:
                         setter(value)
-                    
+
                 # Finally, if we have an individual subject's data, mark their data point on the plot with a white star
                 if self.subject_data is not None:
                     ax.scatter(range(len(subject_values)), subject_values, s=100, marker='*', c='w', edgecolors='k', linewidths=1)
