@@ -34,7 +34,19 @@ class SubjectData(dict):
         self.data_fields = [f for f in self if f.startswith("data_")]
 
         # Collect list of QC fields - look for any keys starting with qc_<name>
-        self.qc_fields = [f[3:] for f in self if f.startswith("qc_")]
+        # containing numeric data FIXME super-ugly
+        self.qc_fields = []
+        for f in self:
+            if not f.startswith("qc_"):
+                continue
+            elif isinstance(self[f], (int, float)) and not isinstance(self[f], bool):
+                self.qc_fields.append(f[3:])
+            elif isinstance(self[f], list):
+                try:
+                    self[f] = [float(v) for v in self[f]]
+                    self.qc_fields.append(f[3:])
+                except ValueError:
+                    pass # Not numeric data
 
     def get_data(self, var):
         """
@@ -46,7 +58,7 @@ class SubjectData(dict):
         try:
             return np.atleast_1d(self['qc_' + var])
         except KeyError:
-            print(f"WARNING: Missing variables for subject {self.subjid} - looking for {vars}")
+            print(f"WARNING: Missing variables for subject {self.subjid} - looking for {var}")
             return np.atleast_1d([])
 
 class GroupData(dict):
@@ -69,7 +81,7 @@ class GroupData(dict):
         try:
             return np.atleast_2d(self['qc_' + var])
         except KeyError:
-            print(f"WARNING: Missing variables in group data - looking for {vars}")
+            print(f"WARNING: Missing variables in group data - looking for {var}")
             return np.atleast_2d([])
 
     def write(self, fname):
