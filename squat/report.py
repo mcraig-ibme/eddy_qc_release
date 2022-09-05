@@ -110,6 +110,9 @@ class Report():
         """
         Write a table to the PDF
         """
+        if len(table_content) == 0:
+            print(f"WARNING: No content for table {table_title} - skipping")
+            return
         ax = plt.subplot2grid((self.table_rows_per_page, self.table_columns), (table_idx//self.table_columns, table_idx % self.table_columns))
         ax.axis('off')
         ax.axis('tight')
@@ -156,12 +159,14 @@ class Report():
                     print(f"WARNING: No variables defined for plot {plot}")
                     continue
 
+                xlabels = None
                 if "xticklabels" in plot:
                     xlabels = plot["xticklabels"]
                     if isinstance(xlabels, str):
-                        xlabels = self.group_data[xlabels]
-                else:
-                    xlabels = None
+                        if xlabels in self.group_data:
+                            xlabels = self.group_data[xlabels]
+                        else:
+                            xlabels = None
 
                 group_values, data_values, var_names = self._get_data(vars)
                 for idx, value in enumerate(data_values):
@@ -204,8 +209,9 @@ class Report():
                     print(f"WARNING: Plot variable not defined {plot}")
                     continue
                 group_values, subject_values, var_names = self._get_data(data_item)
-                if group_values is None or len(group_values) == 0:
+                if group_values is None or group_values.size == 0:
                     # Skip plot if data could not be found
+                    print(f"WARNING: No data for {data_item} - skipping")
                     continue
 
                 # If there are fewer plots than columns, make initial plots span an extra column
@@ -227,7 +233,10 @@ class Report():
                 # from other data in the group JSON file
                 for arg, value in plot.items():
                     if arg in ["xticklabels",] and isinstance(value, str):
-                        value = self.group_data[value]
+                        if value in self.group_data:
+                            value = self.group_data[value]
+                        else:
+                            value = None
                     setter = getattr(ax, f"set_{arg}", None)
                     if setter is not None:
                         setter(value)
