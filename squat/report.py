@@ -110,9 +110,6 @@ class Report():
         """
         Write a table to the PDF
         """
-        if len(table_content) == 0:
-            print(f"WARNING: No content for table {table_title} - skipping")
-            return
         ax = plt.subplot2grid((self.table_rows_per_page, self.table_columns), (table_idx//self.table_columns, table_idx % self.table_columns))
         ax.axis('off')
         ax.axis('tight')
@@ -135,20 +132,18 @@ class Report():
         Generate tables for subject report including RAG flagging of outliers
         """
         table_idx, table_title, table_content, table_colours = 0, None, [], []
-        self._new_page()
         for group_idx, plots in enumerate(self.report_def):
             for plot_idx, plot in enumerate(plots):
                 plot = dict(plot)
                 new_table_title = plot.get("group_title", table_title)
                 if new_table_title != table_title:
-                    if table_title is not None:
+                    if table_title is not None and len(table_content) > 0:
                         # We have a previous table - display this first
+                        if table_idx % (self.table_rows_per_page*self.table_columns) == 0:
+                            if table_idx > 0: self._save_page(pdf)
+                            self._new_page()
                         self._show_table(table_idx, table_title, table_content, table_colours)
                         table_idx += 1
-                        if table_idx % (self.table_rows_per_page*self.table_columns) == 0:
-                            self._save_page(pdf)
-                            self._new_page()
-                            table_idx = 0
                         table_content = []
                         table_colours = []
                     table_title = new_table_title
@@ -179,7 +174,7 @@ class Report():
                     table_colours.append([NOCOLOUR, self._get_outlier_colour(value, var_names[idx])])
 
         # Show last table
-        if table_title is not None:
+        if table_title is not None and len(table_content) > 0:
             self._show_table(table_idx, table_title, table_content, table_colours)
         self._save_page(pdf)
 
@@ -189,7 +184,8 @@ class Report():
         """
         num_cols = max([len(plots) for plots in self.report_def])
 
-        for group_idx, plots in enumerate(self.report_def):
+        group_idx = 0
+        for plots in self.report_def:
             # Check if we need to start a new page
             if group_idx % self.plot_rows_per_page == 0:
                 if group_idx > 0:
@@ -201,7 +197,8 @@ class Report():
             group_num_cols = sum([plot.get("colspan", 1) for plot in plots])
             current_col = 0
 
-            for plot_idx, plot in enumerate(plots):
+            plot_idx = 0
+            for plot in plots:
                 plot = dict(plot)
                 # Get the data variable to be plotted
                 data_item = plot.pop("var", None)
@@ -214,6 +211,7 @@ class Report():
                     print(f"WARNING: No data for {data_item} - skipping")
                     continue
 
+                have_plot = True
                 # If there are fewer plots than columns, make initial plots span an extra column
                 colspan = plot.pop("colspan", 1) 
                 if group_num_cols < num_cols and plot_idx < (num_cols - group_num_cols):
@@ -244,6 +242,10 @@ class Report():
                 # Finally, if we have an individual subject's data, mark their data point on the plot with a white star
                 if self.subject_data is not None:
                     ax.scatter(range(len(subject_values)), subject_values, s=100, marker='*', c='w', edgecolors='k', linewidths=1)
+                plot_idx += 1
+
+            if plot_idx > 0:
+                group_idx += 1
 
         # Save last page
         self._save_page(pdf)
