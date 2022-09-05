@@ -53,6 +53,7 @@ def main():
     parser.add_argument('--group-data', help="JSON file containing previously extracted group QC data")
     parser.add_argument('--group-report', action="store_true", default=False, help="Generate group report")
     parser.add_argument('--subject-reports', action="store_true", default=False, help="Generate individual subject reports")
+    parser.add_argument('--subject-report-path', help="Path within subject dir to save individual subject reports. If not specified, subject reports are all stored in the output directory")
     parser.add_argument('--report-def', help="JSON report definition file")
     parser.add_argument('--comparison-dists', help="JSON file containing mapping from variable name to distribution mean/std from some external group")
     parser.add_argument('--amber-sigma', type=float, default=1, help="Number of standard deviations away from the mean for a value to be flagged as an 'amber' outlier")
@@ -114,18 +115,21 @@ def main():
         sys.stdout.write('Generating group QC report...')
         sys.stdout.flush()
         report = Report(report_def, group_data)
-        report.save(os.path.join(args.output, "group_report.pdf"))
+        report.save(os.path.join(args.output, "qc_group_report.pdf"))
         sys.stdout.write('DONE\n')
     
     if args.subject_reports:
-        sys.stdout.write('Generating subject QC reports...')
-        sys.stdout.flush()
+        print('Generating subject QC reports...')
         for subject_data in subjqcdata:
-            sys.stdout.write(subject_data.subjid + " ")
-            sys.stdout.flush()
+            if args.subject_report_path:
+                subjdir = os.path.join(args.subjdir, subject_data.subjid)
+                subj_report_path = os.path.join(subjdir, args.subject_report_path)
+            else:
+                subj_report_path = os.path.join(args.output, f"{subject_data.subjid}_qc_report.pdf")
+            print(f" - {subject_data.subjid}: {subj_report_path}")
             report = Report(report_def, group_data, subject_data, comparison_dists=args.comparison_dists, red_sigma=args.red_sigma, amber_sigma=args.amber_sigma)
-            report.save(os.path.join(args.output, f"{subject_data.subjid}_report.pdf"))
-        sys.stdout.write('DONE\n')
+            report.save(subj_report_path)
+        print('DONE')
 
 if __name__ == "__main__":
     main()
