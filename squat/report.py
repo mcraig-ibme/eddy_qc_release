@@ -5,13 +5,18 @@ Matteo Bastiani, FMRIB, Oxford
 Martin Craig, SPMIC, Nottingham
 """
 import datetime
+import os
+import tempfile
 
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 import seaborn
 seaborn.set()
+
+import fsl.wrappers as fsl
 
 RED = [0.8, 0.20, 0.20, 0.5]
 AMBER = [0.91, 0.71, 0.09, 0.5]
@@ -22,7 +27,7 @@ class Report():
 
     def __init__(self, report_def, group_data, subject_data=None, comparison_dists={}, amber_sigma=1, red_sigma=2):
         """
-        Individual or group report constructor
+        Individual or group report
 
         :param report_def: Dictionary definition of report, must contain key: squat_report
         :param group_data: Group QC data
@@ -135,7 +140,7 @@ class Report():
         for group_idx, plots in enumerate(self.report_def):
             for plot_idx, plot in enumerate(plots):
                 plot = dict(plot)
-                new_table_title = plot.get("group_title", table_title)
+                new_table_title = plot.get("table_title", table_title)
                 if new_table_title != table_title:
                     if table_title is not None and len(table_content) > 0:
                         # We have a previous table - display this first
@@ -178,54 +183,56 @@ class Report():
             self._show_table(table_idx, table_title, table_content, table_colours)
         self._save_page(pdf)
 
-    def _generate_group_plots(self, pdf):
+    def _generate_plots(self, pdf):
         """
-        Generate group distribution plots
-        """
-        num_cols = max([len(plots) for plots in self.report_def])
+        Generate plots
 
-        group_idx = 0
-        for plots in self.report_def:
+        Plots are arranged in groups, each of which is a row on the page. Plots
+        are either image plots (for single subject report only) or distribution plots
+        (for individual and group reports)
+        """
+        num_cols = max([len(group) for group in self.report_def])
+
+        current_row = 0
+        for group in self.report_def:
             # Check if we need to start a new page
-            if group_idx % self.plot_rows_per_page == 0:
-                if group_idx > 0:
+            if current_row % self.plot_rows_per_page == 0:
+                if current_row > 0:
                     # Format and save previous page
                     self._save_page(pdf)
                 self._new_page()
 
             # Find out how many columns the defined plots will occupy
-            group_num_cols = sum([plot.get("colspan", 1) for plot in plots])
+            group_num_cols = sum([plot.get("colspan", 1) for plot in group])
             current_col = 0
 
-            plot_idx = 0
-            for plot in plots:
-                plot = dict(plot)
-                # Get the data variable to be plotted
-                data_item = plot.pop("var", None)
-                if data_item is None:
-                    print(f"WARNING: Plot variable not defined {plot}")
-                    continue
-                group_values, subject_values, var_names = self._get_data(data_item)
-                if group_values is None or group_values.size == 0:
-                    # Skip plot if data could not be found
-                    print(f"WARNING: No data for {data_item} - skipping")
-                    continue
+            # If there are fewer plots than columns, make initial plots span extra columns
+            extra_cols = num_cols - group_num_cols
+            num_plots = len(group)
+            for plot_idx in range(extra_cols):
+                group[plot_idx % num_plots]["colspan"] = group[plot_idx % num_plots].pop("colspan", 1) + 1
 
-                have_plot = True
-                # If there are fewer plots than columns, make initial plots span an extra column
-                colspan = plot.pop("colspan", 1) 
-                if group_num_cols < num_cols and plot_idx < (num_cols - group_num_cols):
-                    colspan += 1
+            group_any_plotted = False
+            for plot_idx, plot in enumerate(group):
+                plot = dict(plot)
 
                 # Get the axes on which to create the plot
-                ax = plt.subplot2grid((self.plot_rows_per_page, num_cols), (group_idx % self.plot_rows_per_page, current_col), colspan=colspan)
-                current_col += colspan
+                colspan = plot.pop("colspan", 1)
+                ax = plt.subplot2grid((self.plot_rows_per_page, num_cols), (current_row % self.plot_rows_per_page, current_col), colspan=colspan)
 
-                # Plot the data
-                seaborn.violinplot(data=group_values, scale='width', width=0.5, palette='Set3', linewidth=1, inner='point', ax=ax)
-                seaborn.despine(left=True, bottom=True, ax=ax)
-                ax.get_yaxis().get_major_formatter().set_useOffset(False)
-                #ax.ticklabel_format(style='plain')
+                # Get the data variable or image to be plotted
+                data_item = plot.pop("var", None)
+                img_name = plot.pop("img", None)
+                if not data_item and not img_name:
+                    print(f"WARNING: Neither plot variable nor image name was defined for this plot: {plot}")
+                    continue
+                elif data_item and img_name:
+                    print(f"WARNING: Can't specify plot variable and image name at the same time for this plot: {plot}")
+                    continue
+                elif data_item:
+                    plotted = self._distribution_plot(ax, data_item, plot)
+                else:
+                    plotted = self._image_plot(ax, img_name, plot)
 
                 # Set other properties defined for the plot. Note that some properties can take their values
                 # from other data in the group JSON file
@@ -239,16 +246,59 @@ class Report():
                     if setter is not None:
                         setter(value)
 
-                # Finally, if we have an individual subject's data, mark their data point on the plot with a white star
-                if self.subject_data is not None:
-                    ax.scatter(range(len(subject_values)), subject_values, s=100, marker='*', c='w', edgecolors='k', linewidths=1)
-                plot_idx += 1
-
-            if plot_idx > 0:
-                group_idx += 1
+                if plotted:
+                    current_col += colspan
+                    group_any_plotted = True
+            if group_any_plotted:
+                current_row += 1
 
         # Save last page
         self._save_page(pdf)
+
+    def _image_plot(self, ax, img_name, plot):
+        """
+        Plot images for subject reports only
+        """
+        if self.subject_data is None:
+            return False
+        img = self.subject_data.get_image(img_name)
+        if not img:
+            return False
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            if ".nii" in img:
+                slice_img_fname = os.path.join(tempdir, "slice.png")
+                fsl.slicer(img, i="0 1", a=slice_img_fname)
+            else:
+                slice_img_fname = img
+
+            slice_img = matplotlib.image.imread(slice_img_fname)
+            ax.imshow(slice_img.data, interpolation='none')
+            #plt.colorbar(im, ax=ax)
+            ax.grid(False)
+            ax.axis('off')
+            #ax.set_title(title)
+        return True
+
+    def _distribution_plot(self, ax, data_item, plot):
+        """
+        Plot the distribution of data variable(s)
+        """
+        group_values, subject_values, var_names = self._get_data(data_item)
+        if group_values is None or len(group_values) == 0:
+            # Skip plot if data could not be found
+            return False
+
+        # Plot the data
+        seaborn.violinplot(data=group_values, scale='width', width=0.5, palette='Set3', linewidth=1, inner='point', ax=ax)
+        seaborn.despine(left=True, bottom=True, ax=ax)
+        ax.get_yaxis().get_major_formatter().set_useOffset(False)
+        #ax.ticklabel_format(style='plain')
+
+        # Finally, if we have an individual subject's data, mark their data point on the plot with a white star
+        if self.subject_data is not None:
+            ax.scatter(range(len(subject_values)), subject_values, s=100, marker='*', c='w', edgecolors='k', linewidths=1)
+        return True
 
     def _generate(self, pdf):
         """
@@ -261,7 +311,7 @@ class Report():
         if self.subject_data is not None:
             self._generate_subject_tables(pdf)
 
-        self._generate_group_plots(pdf)
+        self._generate_plots(pdf)
         
         # Set the file's metadata via the PdfPages object:
         d = pdf.infodict()

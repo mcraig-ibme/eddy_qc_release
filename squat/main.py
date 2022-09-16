@@ -49,6 +49,7 @@ def main():
     parser.add_argument('--subjdir', default=".", help='Path to directory containing single-subject output')
     parser.add_argument('--subjects', help='Path to text file containing a list of subject IDs. If not specified will use all subdirectories of --subjdir')
     parser.add_argument('--qcpaths', default=["qc.json"], nargs="+", help='Paths to all JSON QC output files relative to subject directory')
+    parser.add_argument('--qcimgs', default=["qc.json"], nargs="+", help='Paths to all Nifti images to be used for visual QC (subject reports only)')
     parser.add_argument('--extract', action="store_true", default=False, help="Extract data from single-subject QC output into group data file")
     parser.add_argument('--group-data', help="JSON file containing previously extracted group QC data")
     parser.add_argument('--group-report', action="store_true", default=False, help="Generate group report")
@@ -90,10 +91,14 @@ def main():
         subjqcdata = []
         for subjid in subjids:
             subjdir = os.path.join(args.subjdir, subjid)
-            subjqcdata.append(SubjectData(subjid, [os.path.join(subjdir, qcpath) for qcpath in args.qcpaths]))
+            subjqcdata.append(SubjectData(
+                subjid, 
+                [os.path.join(subjdir, qcpath) for qcpath in args.qcpaths], 
+                [os.path.join(subjdir, imgpath) for imgpath in args.qcimgs],
+            ))
 
     if args.generate_test_data:
-        sys.stdout.write('Generating test data for {args.generate_test_data_n} subjects...')
+        sys.stdout.write(f'Generating test data for {args.generate_test_data_n} subjects...')
         sys.stdout.flush()
         if len(subjqcdata) == 0:
             raise ValueError("Can't generate test data without a sample subject")

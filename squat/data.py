@@ -4,9 +4,12 @@ SQUAT: Handle operations on the group JSON data file
 Matteo Bastiani: FMRIB, Oxford
 Martin Craig: SPMIC, Nottingham
 """
+import os
 import json
 
 import numpy as np
+
+from fsl.data.image import Image
 
 def _check_consistent(subjid, subject_fields, group_fields):
     not_in_group = [k for k in subject_fields if k not in group_fields]
@@ -24,12 +27,13 @@ def read_json(fname, desc):
         raise ValueError(f"Could not read {desc} data file: {fname} : {exc}")
 
 class SubjectData(dict):
-    def __init__(self, subjid, fnames=[], **kwargs):
+    def __init__(self, subjid, json_fnames=[], img_fnames=[], **kwargs):
         dict.__init__(self, **kwargs)
         self.subjid = subjid
-        for fname in fnames:
+        for fname in json_fnames:
             self.update(read_json(fname, "subject QC"))
-    
+        self["_imgs"] = img_fnames
+
         # Collect list of data fields - anything starting data_
         self.data_fields = [f for f in self if f.startswith("data_")]
 
@@ -47,6 +51,29 @@ class SubjectData(dict):
                     self.qc_fields.append(f[3:])
                 except ValueError:
                     pass # Not numeric data
+
+    def get_image(self, name):
+        """
+        Get image data for this subject
+
+        :param name: Image name. Can be a full path relative to subject directory, or simply a filename
+                     in which case the first matching file in the list will be returned. Generally it's
+                     better if QC images all have distinct filenames. Image names should be given without
+                     Nifti extension and are compared in a case-insensitive way.
+        :return: Path to the named data or None if not found (warning will be logged)
+        """
+        if ".nii" in name:
+            name = name[:name.index(".nii")]
+
+        for fpath in self["_imgs"]:
+            if fpath.strip().lower() == name.strip().lower():
+                return fpath
+        for fpath in self["_imgs"]:
+            fname = os.path.basename(fpath)
+            if fname.strip().lower() == name.strip().lower():
+                return fpath
+        print(f"WARNING: Could not find image for subject {self.subjid} - looking for {name}")
+        return None
 
     def get_data(self, var):
         """
