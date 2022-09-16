@@ -1,4 +1,6 @@
-Make report and data objects
 Grouping variables
 Different plot types
 Fancier output, e.g. images, heatmaps
+Use logging
+Normal ranges for flagging: make this configurable, e.g. number of sigmas for amber/red.
+Also allow direct specification of normal ranges mean/std for a QC item, e.g. derived from external data set
