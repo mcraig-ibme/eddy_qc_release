@@ -24,15 +24,17 @@ def read_json(fname, desc):
         with open(fname, 'r') as f:
             return json.load(f)
     except (IOError, json.JSONDecodeError) as exc:
-        raise ValueError(f"Could not read {desc} data file: {fname} : {exc}")
+        raise IOError(f"Could not read {desc} data file: {fname} : {exc}")
 
 class SubjectData(dict):
     def __init__(self, subjid, subjdir, json_fnames=[], **kwargs):
         dict.__init__(self, **kwargs)
         self.subjid = subjid
-        self.subjdir = subjdir
         for fname in json_fnames:
-            self.update(read_json(fname, "subject QC"))
+            try:
+                self.update(read_json(fname, "subject QC"))
+            except IOError as exc:
+                print(f"WARNING: Failed to read subject QC data from {fname} - skipping this file")
 
         # Collect list of data fields - anything starting data_
         self.data_fields = [f for f in self if f.startswith("data_")]
