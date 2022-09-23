@@ -93,6 +93,13 @@ class Report():
         plt.suptitle(self.title, fontsize=10, fontweight='bold')
 
     def _get_data(self, vars):
+        """
+        Get data for a plot
+        
+        :param vars: Name of variable, or list of variables
+
+        :return: Tuple of group values [NVALS, NSUBJS], subject values [NVALS] and names [NVALS]
+        """
         if not isinstance(vars, list):
             vars = [vars]
 
@@ -140,6 +147,9 @@ class Report():
         for group_idx, plots in enumerate(self.report_def):
             for plot_idx, plot in enumerate(plots):
                 plot = dict(plot)
+                if plot.get("type", "dist") != "dist":
+                    continue
+
                 new_table_title = plot.get("table_title", table_title)
                 if new_table_title != table_title:
                     if table_title is not None and len(table_content) > 0:
@@ -183,12 +193,12 @@ class Report():
             self._show_table(table_idx, table_title, table_content, table_colours)
         self._save_page(pdf)
 
-    def _generate_plots(self, pdf):
+    def _generate_group_plots(self, pdf):
         """
-        Generate plots
+        Generate plots from group data
 
         Plots are arranged in groups, each of which is a row on the page. Plots
-        are either image plots (for single subject report only) or distribution plots
+        are either image plots, line plots (for single subject report only) or distribution plots
         (for individual and group reports)
         """
         num_cols = max([len(group) for group in self.report_def])
@@ -213,38 +223,12 @@ class Report():
                 group[plot_idx % num_plots]["colspan"] = group[plot_idx % num_plots].pop("colspan", 1) + 1
 
             group_any_plotted = False
-            for plot_idx, plot in enumerate(group):
+            for plot in group:
                 plot = dict(plot)
-
                 # Get the axes on which to create the plot
                 colspan = plot.pop("colspan", 1)
                 ax = plt.subplot2grid((self.plot_rows_per_page, num_cols), (current_row % self.plot_rows_per_page, current_col), colspan=colspan)
-
-                # Get the data variable or image to be plotted
-                data_item = plot.pop("var", None)
-                img_name = plot.pop("img", None)
-                if not data_item and not img_name:
-                    print(f"WARNING: Neither plot variable nor image name was defined for this plot: {plot}")
-                    continue
-                elif data_item and img_name:
-                    print(f"WARNING: Can't specify plot variable and image name at the same time for this plot: {plot}")
-                    continue
-                elif data_item:
-                    plotted = self._distribution_plot(ax, data_item, plot)
-                else:
-                    plotted = self._image_plot(ax, img_name, plot)
-
-                # Set other properties defined for the plot. Note that some properties can take their values
-                # from other data in the group JSON file
-                for arg, value in plot.items():
-                    if arg in ["xticklabels",] and isinstance(value, str):
-                        if value in self.group_data:
-                            value = self.group_data[value]
-                        else:
-                            value = None
-                    setter = getattr(ax, f"set_{arg}", None)
-                    if setter is not None:
-                        setter(value)
+                plotted = self._do_plot(ax, plot)
 
                 if plotted:
                     current_col += colspan
@@ -255,11 +239,56 @@ class Report():
         # Save last page
         self._save_page(pdf)
 
-    def _image_plot(self, ax, img_name, plot):
+    def _do_plot(self, ax, plot):
+        # Get the data variable or image to be plotted
+        plot_type = plot.pop("type", "dist")
+        if plot_type == "dist":
+            plotted = self._distribution_plot(ax, plot)
+        elif plot_type == "img":
+            plotted = self._image_plot(ax, plot)
+        elif plot_type == "line":
+            plotted = self._line_plot(ax, plot)
+
+        # Set other properties defined for the plot. Note that some properties can take their values
+        # from other data in the group JSON file
+        if plotted:
+            for arg, value in plot.items():
+                if arg in ["xticklabels",] and isinstance(value, str):
+                    if value in self.group_data:
+                        value = self.group_data[value]
+                    else:
+                        value = None
+                setter = getattr(ax, f"set_{arg}", None)
+                if setter is not None:
+                    setter(value)
+        return plotted
+
+    def _line_plot(self, ax, plot):
+        """
+        Line plot for subject reports only
+        """
+        if self.subject_data is None:
+            return False
+        data_item = plot.pop("var", None)
+        if not data_item:
+            print(f"WARNING: plot variable not defined for line plot: {plot}")
+            return False
+        group_values, subject_values, var_names = self._get_data(data_item)
+        if subject_values is None or len(subject_values) == 0:
+            # Skip plot if data could not be found
+            return False
+        ax.plot(subject_values)
+        return True
+
+    def _image_plot(self, ax, plot):
         """
         Plot images for subject reports only
         """
         if self.subject_data is None:
+            return False
+        img_name = plot.pop("img", None)
+        if not img_name:
+            print(f"WARNING: image name not defined for image plot: {plot}")
             return False
         img = self.subject_data.get_image(img_name)
         if not img:
@@ -280,10 +309,15 @@ class Report():
             #ax.set_title(title)
         return True
 
-    def _distribution_plot(self, ax, data_item, plot):
+    def _distribution_plot(self, ax, plot):
         """
         Plot the distribution of data variable(s)
         """
+        data_item = plot.pop("var", None)
+        if not data_item:
+            print(f"WARNING: plot variable not defined for distribution plot: {plot}")
+            return False
+
         group_values, subject_values, var_names = self._get_data(data_item)
         if group_values is None or len(group_values) == 0:
             # Skip plot if data could not be found
@@ -311,7 +345,7 @@ class Report():
         if self.subject_data is not None:
             self._generate_subject_tables(pdf)
 
-        self._generate_plots(pdf)
+        self._generate_group_plots(pdf)
         
         # Set the file's metadata via the PdfPages object:
         d = pdf.infodict()

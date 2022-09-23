@@ -27,12 +27,12 @@ def read_json(fname, desc):
         raise ValueError(f"Could not read {desc} data file: {fname} : {exc}")
 
 class SubjectData(dict):
-    def __init__(self, subjid, json_fnames=[], img_fnames=[], **kwargs):
+    def __init__(self, subjid, subjdir, json_fnames=[], **kwargs):
         dict.__init__(self, **kwargs)
         self.subjid = subjid
+        self.subjdir = subjdir
         for fname in json_fnames:
             self.update(read_json(fname, "subject QC"))
-        self["_imgs"] = img_fnames
 
         # Collect list of data fields - anything starting data_
         self.data_fields = [f for f in self if f.startswith("data_")]
@@ -56,22 +56,16 @@ class SubjectData(dict):
         """
         Get image data for this subject
 
-        :param name: Image name. Can be a full path relative to subject directory, or simply a filename
-                     in which case the first matching file in the list will be returned. Generally it's
-                     better if QC images all have distinct filenames. Image names should be given without
-                     Nifti extension and are compared in a case-insensitive way.
-        :return: Path to the named data or None if not found (warning will be logged)
+        :param name: Image name as full path relative to subject directory. Image names can be given 
+                     without Nifti or PNG extension.
+        :return: Path to matching file or None if not found (warning will be logged)
         """
-        if ".nii" in name:
-            name = name[:name.index(".nii")]
+        fpath = os.path.join(self.subjdir, name)
+        extensions = ["", ".nii", ".nii.gz", ".png"]
+        for ext in extensions:
+            if os.path.isfile(fpath + ext):
+                return fpath + ext
 
-        for fpath in self["_imgs"]:
-            if fpath.strip().lower() == name.strip().lower():
-                return fpath
-        for fpath in self["_imgs"]:
-            fname = os.path.basename(fpath)
-            if fname.strip().lower() == name.strip().lower():
-                return fpath
         print(f"WARNING: Could not find image for subject {self.subjid} - looking for {name}")
         return None
 
