@@ -7,6 +7,7 @@ Martin Craig, SPMIC, Nottingham
 import datetime
 import os
 import tempfile
+import logging
 
 import numpy as np
 import matplotlib
@@ -17,6 +18,8 @@ import seaborn
 seaborn.set()
 
 import fsl.wrappers as fsl
+
+LOG = logging.getLogger(__name__)
 
 RED = [0.8, 0.20, 0.20, 0.5]
 AMBER = [0.91, 0.71, 0.09, 0.5]
@@ -84,11 +87,13 @@ class Report():
         return GREEN
 
     def _save_page(self, pdf):
+        LOG.debug("Save page")
         plt.tight_layout(h_pad=1, pad=4)
         plt.savefig(pdf, format='pdf')
         plt.close()
 
     def _new_page(self):
+        LOG.debug("New page")
         plt.figure(figsize=(8.27,11.69))   # Standard portrait A4 sizes
         plt.suptitle(self.title, fontsize=10, fontweight='bold')
 
@@ -122,7 +127,8 @@ class Report():
         """
         Write a table to the PDF
         """
-        ax = plt.subplot2grid((self.table_rows_per_page, self.table_columns), (table_idx//self.table_columns, table_idx % self.table_columns))
+        LOG.debug(f"Show table: {table_idx} {table_title}")
+        ax = plt.subplot2grid((self.table_rows_per_page, self.table_columns), ((table_idx//self.table_columns) % self.table_rows_per_page, table_idx % self.table_columns))
         ax.axis('off')
         ax.axis('tight')
         ax.set_title(table_title, fontsize=12, fontweight='bold',loc='left')
@@ -143,30 +149,37 @@ class Report():
         """
         Generate tables for subject report including RAG flagging of outliers
         """
-        table_idx, table_title, table_content, table_colours = 0, None, [], []
-        for group_idx, plots in enumerate(self.report_def):
-            for plot_idx, plot in enumerate(plots):
+        table_idx, cur_table_title, table_content, table_colours = 0, None, [], []
+        for plots in self.report_def:
+            for plot in plots:
+                # Allow table layout constraints to be overridden at any point
+                self.table_rows_per_page = plot.get("table_rows_per_page", self.table_rows_per_page)
+                self.table_columns = plot.get("table_columns", self.table_columns)
+
                 plot = dict(plot)
                 if plot.get("type", "dist") != "dist":
+                    LOG.debug(f"No table for plot: {plot}")
                     continue
 
-                new_table_title = plot.get("table_title", table_title)
-                if new_table_title != table_title:
-                    if table_title is not None and len(table_content) > 0:
+                # See if we are starting a new table
+                new_table_title = plot.get("group_title", cur_table_title)
+                if new_table_title != cur_table_title:
+                    if cur_table_title is not None and len(table_content) > 0:
+                        LOG.debug(f"Displaying current table {cur_table_title}")
                         # We have a previous table - display this first
                         if table_idx % (self.table_rows_per_page*self.table_columns) == 0:
                             if table_idx > 0: self._save_page(pdf)
                             self._new_page()
-                        self._show_table(table_idx, table_title, table_content, table_colours)
+                        self._show_table(table_idx, cur_table_title, table_content, table_colours)
                         table_idx += 1
                         table_content = []
                         table_colours = []
-                    table_title = new_table_title
+                    cur_table_title = new_table_title
 
                 # Get the data variable and add all values to the table with appropriate label
                 vars = plot.pop("var", None)
                 if vars is None:
-                    print(f"WARNING: No variables defined for plot {plot}")
+                    LOG.warn(f"No variables defined for table {plot}")
                     continue
 
                 xlabels = None
@@ -179,6 +192,7 @@ class Report():
                             xlabels = None
 
                 group_values, data_values, var_names = self._get_data(vars)
+                LOG.debug(f"Adding {len(data_values)} values to table {cur_table_title}")
                 for idx, value in enumerate(data_values):
                     row_label = plot.get("title", "")
                     if xlabels:
@@ -189,8 +203,8 @@ class Report():
                     table_colours.append([NOCOLOUR, self._get_outlier_colour(value, var_names[idx])])
 
         # Show last table
-        if table_title is not None and len(table_content) > 0:
-            self._show_table(table_idx, table_title, table_content, table_colours)
+        if cur_table_title is not None and len(table_content) > 0:
+            self._show_table(table_idx, cur_table_title, table_content, table_colours)
         self._save_page(pdf)
 
     def _generate_group_plots(self, pdf):
@@ -224,7 +238,10 @@ class Report():
 
             group_any_plotted = False
             for plot in group:
+                # Allow plot layout to be overridden at any point
                 plot = dict(plot)
+                self.plot_rows_per_page = plot.get("plot_rows_per_page", self.plot_rows_per_page)
+
                 # Get the axes on which to create the plot
                 colspan = plot.pop("colspan", 1)
                 ax = plt.subplot2grid((self.plot_rows_per_page, num_cols), (current_row % self.plot_rows_per_page, current_col), colspan=colspan)
@@ -271,7 +288,7 @@ class Report():
             return False
         data_item = plot.pop("var", None)
         if not data_item:
-            print(f"WARNING: plot variable not defined for line plot: {plot}")
+            LOG.warn(f"Plot variable not defined for line plot: {plot}")
             return False
         group_values, subject_values, var_names = self._get_data(data_item)
         if subject_values is None or len(subject_values) == 0:
@@ -288,7 +305,7 @@ class Report():
             return False
         img_name = plot.pop("img", None)
         if not img_name:
-            print(f"WARNING: image name not defined for image plot: {plot}")
+            LOG.warn(f"Image name not defined for image plot: {plot}")
             return False
         img = self.subject_data.get_image(img_name)
         if not img:
@@ -315,7 +332,7 @@ class Report():
         """
         data_item = plot.pop("var", None)
         if not data_item:
-            print(f"WARNING: plot variable not defined for distribution plot: {plot}")
+            LOG.warn(f"Plot variable not defined for distribution plot: {plot}")
             return False
 
         group_values, subject_values, var_names = self._get_data(data_item)

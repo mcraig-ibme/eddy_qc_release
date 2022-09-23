@@ -6,10 +6,11 @@ Martin Craig: SPMIC, Nottingham
 """
 import os
 import json
+import logging
 
 import numpy as np
 
-from fsl.data.image import Image
+LOG = logging.getLogger(__name__)
 
 def _check_consistent(subjid, subject_fields, group_fields):
     not_in_group = [k for k in subject_fields if k not in group_fields]
@@ -35,7 +36,7 @@ class SubjectData(dict):
             try:
                 self.update(read_json(fname, "subject QC"))
             except IOError as exc:
-                print(f"WARNING: Failed to read subject QC data from {fname} - skipping this file")
+                LOG.warn(f"Failed to read subject QC data from {fname} - skipping this file")
 
         # Collect list of data fields - anything starting data_
         self.data_fields = [f for f in self if f.startswith("data_")]
@@ -69,7 +70,7 @@ class SubjectData(dict):
             if os.path.isfile(fpath + ext):
                 return fpath + ext
 
-        print(f"WARNING: Could not find image for subject {self.subjid} - looking for {name}")
+        LOG.warn(f"Could not find image for subject {self.subjid} - looking for {name}")
         return None
 
     def get_data(self, var):
@@ -82,7 +83,7 @@ class SubjectData(dict):
         try:
             return np.atleast_1d(self['qc_' + var])
         except KeyError:
-            print(f"WARNING: Missing variables for subject {self.subjid} - looking for {var}")
+            LOG.warn(f"WARNING: Missing variables for subject {self.subjid} - looking for {var}")
             return np.atleast_1d([])
 
 class GroupData(dict):
@@ -105,7 +106,7 @@ class GroupData(dict):
         try:
             return np.atleast_2d(self['qc_' + var])
         except KeyError:
-            print(f"WARNING: Missing variables in group data - looking for {var}")
+            LOG.warn(f"Missing variables in group data - looking for {var}")
             return np.atleast_2d([])
 
     def write(self, fname):

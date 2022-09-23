@@ -9,7 +9,9 @@ Martin Craig, SPMIC, Nottingham
 """
 import os
 import warnings
-import json
+import logging
+import argparse
+import sys
 
 import matplotlib
 import matplotlib.style
@@ -19,16 +21,14 @@ matplotlib.use('Agg')   # generate pdf output by default
 matplotlib.interactive(False)
 matplotlib.style.use('classic')
 
+from ._version import __version__
 from .report import Report
 from .data import GroupData, SubjectData, read_json
-
-import argparse
-import sys
-
-from ._version import __version__
 from .test.data import generate_test_data
 
-def get_subjects(subjdir, fname):
+LOG = logging.getLogger(__name__)
+
+def _get_subjects(subjdir, fname):
     if fname:       
         try:
             with open(fname) as fp:
@@ -40,6 +40,18 @@ def get_subjects(subjdir, fname):
             return sorted(os.listdir(subjdir))
         except IOError as exc:
             raise ValueError(f"Failed to find any subject directories in {subjdir}: {exc}")
+
+def _setup_logging(args):
+    if args.debug:
+        logging.getLogger("squat").setLevel(logging.DEBUG)
+    else:
+        logging.getLogger("squat").setLevel(logging.INFO)
+
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+    logging.getLogger().addHandler(handler)
 
 def main():
     """
@@ -62,11 +74,15 @@ def main():
     parser.add_argument('--overwrite', action="store_true", default=False, help='If specified, overwrite any existing output')
     parser.add_argument('--generate-test-data', action="store_true", default=False, help='Generate test data')
     parser.add_argument('--generate-test-data-n', type=int, default=10, help='Generate test data for for this number of subjects')
+    parser.add_argument('--debug', action="store_true", default=False, help="Enable debug logging")
     args = parser.parse_args()
 
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
+
+    _setup_logging(args)
+    LOG.info(f"SQUAT: Study-wise QUality Assessment Tool v{__version__}")
 
     if not args.extract and not args.group_data and not args.generate_test_data:
         raise ValueError("Must specify either --extract or provide a previously extracted group data file with --group-data")
@@ -86,7 +102,7 @@ def main():
     os.makedirs(args.output, exist_ok=True)
 
     if args.extract or args.subject_reports or args.generate_test_data:
-        subjids = get_subjects(args.subjdir, args.subjects)
+        subjids = _get_subjects(args.subjdir, args.subjects)
         subjqcdata = []
         for subjid in subjids:
             subjdir = os.path.join(args.subjdir, subjid)
@@ -96,43 +112,40 @@ def main():
             ))
 
     if args.generate_test_data:
-        sys.stdout.write(f'Generating test data for {args.generate_test_data_n} subjects...')
-        sys.stdout.flush()
+        LOG.info(f'Generating test data for {args.generate_test_data_n} subjects...')
         if len(subjqcdata) == 0:
             raise ValueError("Can't generate test data without a sample subject")
         if len(subjqcdata) != 1:
-            sys.stdout.write("WARNING: more than one subject found, will use first subject as base...")
+            LOG.info("WARNING: more than one subject found, will use first subject as base...")
         generate_test_data(args.generate_test_data_n, args.output, subjqcdata[0])
-        sys.stdout.write('DONE\n')
+        LOG.info('DONE\n')
 
     if args.extract:
-        sys.stdout.write('Generating group data...')
-        sys.stdout.flush()
+        LOG.info('Generating group data...')
         group_data = GroupData(subject_datas=subjqcdata)
         group_data.write(os.path.join(args.output, "group_data.json"))
-        sys.stdout.write('DONE\n')
+        LOG.info('DONE')
     else:
         group_data = GroupData(fname=args.group_data)
 
     if args.group_report:
-        sys.stdout.write('Generating group QC report...')
-        sys.stdout.flush()
+        LOG.info('Generating group QC report...')
         report = Report(report_def, group_data)
         report.save(os.path.join(args.output, "qc_group_report.pdf"))
-        sys.stdout.write('DONE\n')
+        LOG.info('DONE')
     
     if args.subject_reports:
-        print('Generating subject QC reports...')
+        LOG.info('Generating subject QC reports...')
         for subject_data in subjqcdata:
             if args.subject_report_path:
                 subjdir = os.path.join(args.subjdir, subject_data.subjid)
                 subj_report_path = os.path.join(subjdir, args.subject_report_path)
             else:
                 subj_report_path = os.path.join(args.output, f"{subject_data.subjid}_qc_report.pdf")
-            print(f" - {subject_data.subjid}: {subj_report_path}")
+            LOG.info(f" - {subject_data.subjid}: {subj_report_path}")
             report = Report(report_def, group_data, subject_data, comparison_dists=args.comparison_dists, red_sigma=args.red_sigma, amber_sigma=args.amber_sigma)
             report.save(subj_report_path)
-        print('DONE')
+        LOG.info('DONE')
 
 if __name__ == "__main__":
     main()

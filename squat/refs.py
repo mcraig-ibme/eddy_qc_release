@@ -75,7 +75,6 @@ def main(pdf, refs_fname=None):
         ax.grid(False)
         ax.axis('off')
 
-        # print(ax.get_position())
         pos = ax.get_position()
         pos2 = [0.1075, pos.y0, pos.width, pos.height]
         ax.set_position(pos2)
