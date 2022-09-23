@@ -30,6 +30,7 @@ class SubjectData(dict):
     def __init__(self, subjid, subjdir, json_fnames=[], **kwargs):
         dict.__init__(self, **kwargs)
         self.subjid = subjid
+        self.subjdir = subjdir
         for fname in json_fnames:
             try:
                 self.update(read_json(fname, "subject QC"))
