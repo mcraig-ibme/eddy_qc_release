@@ -17,6 +17,8 @@ import logging
 import json
 import sys
 
+import fsl.wrappers as fsl
+
 from . import utils
 
 warnings.filterwarnings("ignore")
@@ -221,7 +223,7 @@ def main():
     }
 
     #=========================================================================================
-    # Check which output files exist and compute qc stats
+    # Check which output files exist and compute qc output
     #=========================================================================================
     qc_data = {}
     motionFile = _eddyfile(args, '.eddy_movement_rms')            # Text file containing no. volumes X 2 columns
@@ -230,6 +232,15 @@ def main():
     olMapFile = _eddyfile(args, '.eddy_outlier_map')              # Text file containing binary matrix [no. volumes X no. slices]
     cnrFile = _eddyfile(args, '.eddy_cnr_maps.nii.gz')            # 4D file containing the eddy-based b-CNR maps (std(pred)/std(res))
     rssFile = _eddyfile(args, '.eddy_residuals.nii.gz')           # 4D file containing the eddy-based residuals
+
+    # Output slice images for each shell
+    epi_vol = eddy_epi.get_fdata()
+    for bval in unique_bvals:
+        bval_vol = np.mean(epi_vol[..., rounded_bvals==bval], axis=3)
+        nii = nib.Nifti1Image(bval_vol, eddy_epi.affine, eddy_epi.header)
+        #nii.save(vol, data['qc_path'] + "/avg_b0.nii.gz")
+        i_max = np.round(np.mean(bval_vol[mask > 0]) + 3*np.std(bval_vol[mask > 0]))
+        fsl.slicer(nii, a=os.path.join(args.output, f"avg_b{bval}.png"), i=(0, i_max))
 
     if os.path.isfile(motionFile):
         LOG.debug('RMS movement estimates file detected')
