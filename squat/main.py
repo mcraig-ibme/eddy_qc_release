@@ -32,7 +32,7 @@ def _get_subjects(subjdir, fname):
     if fname:       
         try:
             with open(fname) as fp:
-                return [l.strip() for l in fp.readlines()]
+                return [l.strip() for l in fp.readlines() if l.strip()]
         except IOError as exc:
             raise ValueError(f"Failed to read subject IDs from {fname}: {exc}")
     else:
