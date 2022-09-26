@@ -103,21 +103,26 @@ class Report():
         
         :param vars: Name of variable, or list of variables
 
-        :return: Tuple of group values [NVALS, NSUBJS], subject values [NVALS] and names [NVALS]
+        :return: Tuple of group values [NSUBJS, [NT], NVALS], subject values [[NT], NVALS] and names [NVALS]
         """
         if not isinstance(vars, list):
             vars = [vars]
 
         group_values, subject_values, names = [], [], []
         for var in vars:
+            LOG.debug(f"get_data: {var}")
             group_values.append(self.group_data.get_data(var))
+            LOG.debug(f"Group value shape: {group_values[-1].shape}")
             if self.subject_data is not None:
                 subject_values.append(self.subject_data.get_data(var))
+                LOG.debug(f"Subject value shape: {subject_values[-1].shape}")
             names += [var] * group_values[-1].shape[1]
 
-        group_values = np.concatenate(group_values, axis=1)
+        group_values = np.atleast_2d(np.squeeze(np.stack(group_values, axis=-1)))
+        LOG.debug(f"Overall group value shape: {group_values.shape}")
         if self.subject_data is not None:
-            subject_values = np.concatenate(subject_values)
+            subject_values = np.atleast_1d(np.squeeze(np.stack(subject_values, axis=-1)))
+            LOG.debug(f"Overall subject value shape: {subject_values.shape}")
         else:
             subject_values = None
 
@@ -182,21 +187,28 @@ class Report():
                     LOG.warn(f"No variables defined for table {plot}")
                     continue
 
-                xlabels = None
-                if "xticklabels" in plot:
-                    xlabels = plot["xticklabels"]
-                    if isinstance(xlabels, str):
-                        if xlabels in self.group_data:
-                            xlabels = self.group_data[xlabels]
-                        else:
-                            xlabels = None
-
                 group_values, data_values, var_names = self._get_data(vars)
                 LOG.debug(f"Adding {len(data_values)} values to table {cur_table_title}")
+
+                row_labels = None
+                if "xticklabels" in plot:
+                    row_labels = plot["xticklabels"]
+                    if isinstance(row_labels, str):
+                        # row_labels can come from another data item
+                        if row_labels in self.group_data:
+                            row_labels = self.group_data[row_labels]
+                        else:
+                            LOG.warn(f"Row labels specified to come from {row_labels} but this data item was not found")
+                            row_labels = None
+
+                    if len(row_labels) != len(data_values):
+                        LOG.warn(f"Number of row labels {row_labels} does not match number of data items {len(data_values)}")
+                        row_labels = None
+
                 for idx, value in enumerate(data_values):
                     row_label = plot.get("title", "")
-                    if xlabels:
-                        row_label += ": %s" % xlabels[idx]
+                    if row_labels:
+                        row_label += ": %s" % row_labels[idx]
                     if "ylabel" in plot:
                         row_label += " (%s)" % plot["ylabel"]
                     table_content.append([row_label, '%1.2f' % value])
@@ -271,13 +283,20 @@ class Report():
         if plotted:
             for arg, value in plot.items():
                 if arg in ["xticklabels",] and isinstance(value, str):
+                    # X labels can come from another data item
                     if value in self.group_data:
                         value = self.group_data[value]
                     else:
+                        LOG.warn(f"{arg} specified to come from {value} but this data item was not found")
                         value = None
+
                 setter = getattr(ax, f"set_{arg}", None)
                 if setter is not None:
-                    setter(value)
+                    try:
+                        setter(value)
+                    except Exception as exc:
+                        LOG.warn(f"Error setting plot property: {arg}={value}: {exc}")
+
         return plotted
 
     def _line_plot(self, ax, plot):
@@ -292,7 +311,6 @@ class Report():
             return False
         LOG.debug(f"Line plot: {plot}")
         group_values, subject_values, var_names = self._get_data(data_item)
-        LOG.debug(f"Values: {subject_values}")
         if subject_values is None or len(subject_values) == 0:
             # Skip plot if data could not be found
             return False
