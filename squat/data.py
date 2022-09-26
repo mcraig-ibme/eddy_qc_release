@@ -30,6 +30,7 @@ def read_json(fname, desc):
 class SubjectData(dict):
     def __init__(self, subjid, subjdir, json_fnames=[], **kwargs):
         dict.__init__(self, **kwargs)
+        LOG.debug(f"Subject {subjid} loading from {json_fnames}")
         self.subjid = subjid
         self.subjdir = subjdir
         for fname in json_fnames:
@@ -51,7 +52,7 @@ class SubjectData(dict):
                 self.qc_fields.append(f[3:])
             elif isinstance(self[f], list):
                 try:
-                    self[f] = [float(v) for v in self[f]]
+                    self[f] = np.array(self[f], dtype=np.float).tolist()
                     self.qc_fields.append(f[3:])
                 except ValueError:
                     pass # Not numeric data
@@ -83,7 +84,7 @@ class SubjectData(dict):
         try:
             return np.atleast_1d(self['qc_' + var])
         except KeyError:
-            LOG.warn(f"WARNING: Missing variables for subject {self.subjid} - looking for {var}")
+            LOG.warn(f"Missing variables for subject {self.subjid} - looking for {var}")
             return np.atleast_1d([])
 
 class GroupData(dict):
