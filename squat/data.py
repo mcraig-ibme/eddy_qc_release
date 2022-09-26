@@ -7,6 +7,7 @@ Martin Craig: SPMIC, Nottingham
 import os
 import json
 import logging
+import math
 
 import numpy as np
 
@@ -16,9 +17,9 @@ def _check_consistent(subjid, subject_fields, group_fields):
     not_in_group = [k for k in subject_fields if k not in group_fields]
     not_in_subject = [k for k in group_fields if k not in subject_fields]
     if not_in_group:
-        raise ValueError(f'Inconsistency in QC fields for subject {subjid}: {not_in_group} not found in group data')
+        LOG.warn(f'Inconsistency in QC fields for subject {subjid}: {not_in_group} not found in group data')
     if not_in_subject:
-        raise ValueError(f'Inconsistency in QC fields for subject {subjid}: {not_in_subject} not found in subject data')
+        LOG.warn(f'Inconsistency in QC fields for subject {subjid}: {not_in_subject} not found in subject data')
 
 def read_json(fname, desc):
     try:
@@ -136,14 +137,14 @@ class GroupData(dict):
 
             # Collect QC data from subject and add it to the group list
             for qc_field in self.qc_fields:
-                subj_qc_data = []
-                value = subject_data["qc_" + qc_field]
-                if isinstance(value, list):
-                    subj_qc_data.extend(value)
-                else:
-                    subj_qc_data.append(value)
-                group_qc_data[qc_field].append(subj_qc_data)
-        
+                value = subject_data.get("qc_" + qc_field, None)
+                if value is None:
+                    # Add the correct number of NaN values
+                    value = [math.nan] * len(group_qc_data[qc_field][-1])
+                elif not isinstance(value, list):
+                    value = [value]
+                group_qc_data[qc_field].append(value)
+
         # Update dictionary to include group data and QC fields  
         self.update({
             'data_num_subjects' : len(subject_datas),
