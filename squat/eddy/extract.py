@@ -15,6 +15,7 @@ import numpy as np
 import nibabel as nib
 import logging
 import json
+import sys
 
 from . import utils
 
@@ -22,8 +23,28 @@ warnings.filterwarnings("ignore")
 
 LOG = logging.getLogger(__name__)
 
+def _setup_logging(args):
+    if args.debug:
+        logging.getLogger("squat").setLevel(logging.DEBUG)
+    else:
+        logging.getLogger("squat").setLevel(logging.INFO)
+
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+    logging.getLogger().addHandler(handler)
+
 def _eddyfile(args, ext):
+    """:return: Path to Eddy output file with given extension"""
     return os.path.join(args.eddydir, args.eddybase + ext)
+
+def _relfile(args, fpath):
+    """:return: Path to file which may be an absolute path or relative to eddy dir"""
+    if os.path.isabs(fpath):
+        return fpath
+    else:
+        return os.path.join(args.eddydir, fpath)
 
 def _imgfile(fname):
     if not fname:
@@ -64,12 +85,15 @@ def main():
     parser.add_argument('--slspec', help="Text file specifying slice/group acquisition")
     parser.add_argument('-o', '--output', help="Output directory - defaults to <eddydir>/qc")
     parser.add_argument('--overwrite', action="store_true", default=False, help='If specified, overwrite any existing output')
+    parser.add_argument('--debug', action="store_true", default=False, help="Enable debug logging")
     args = parser.parse_args()
+
+    _setup_logging(args)
 
     #def extract(eddyBase, eddyIdx, eddyParams, mask, bvalsFile, bvecsFile, oDir, field, slspecFile, verbose):
     if not os.path.isdir(args.eddydir):
         raise ValueError(f"Not a directory: {args.eddydir}")
-    print(f"Using EDDY directory: {args.eddydir}")
+    LOG.info(f"Using EDDY directory: {args.eddydir}")
     
     eddy_files = os.listdir(args.eddydir)
     if not args.eddybase:
@@ -78,7 +102,7 @@ def main():
                 if fname.endswith(ext):
                     args.eddybase = fname[:-len(ext)]
 
-    print(f"Using EDDY base name: {args.eddybase}")
+    LOG.info(f"Using EDDY base name: {args.eddybase}")
 
     eddyfile = None
     for ext in (".nii", ".nii.gz"):
@@ -91,24 +115,24 @@ def main():
     
     # EDDY INDICES
     try:
-        eddyIdxs = np.genfromtxt(os.path.join(args.eddydir, args.idx), dtype=int)
+        eddyIdxs = np.genfromtxt(_relfile(args, args.idx), dtype=int)
     except Exception as exc:
         raise ValueError(f'Failed to read EDDY index file: {args.idx}: {exc}')
 
     # BVALS
     try:
-        bvals = np.genfromtxt(os.path.join(args.eddydir, args.bvals), dtype=float)
+        bvals = np.genfromtxt(_relfile(args, args.bvals), dtype=float)
     except Exception as exc:
         raise ValueError(f'Failed to read BVALS parameter file: {args.bvals}: {exc}')
 
     # MASK
-    mask = _imgfile(os.path.join(args.eddydir, args.mask))
-    if not mask:
+    mask_file = _imgfile(os.path.join(args.eddydir, args.mask))
+    if not mask_file:
         raise ValueError(f'Could not find mask image file: {args.mask}')
 
     # ACQUISITION PARAMETERS
     try:
-        eddyPara = np.genfromtxt(os.path.join(args.eddydir, args.eddy_params), dtype=float)
+        eddyPara = np.genfromtxt(_relfile(args, args.eddy_params), dtype=float)
         #eddyPara = eddyPara.flatten()
         if eddyPara.ndim > 1:
             tmp_eddyPara = np.ascontiguousarray(eddyPara).view(np.dtype((np.void, eddyPara.dtype.itemsize * eddyPara.shape[1])))
@@ -119,12 +143,11 @@ def main():
     except Exception as exc:
         raise ValueError(f'Failed to read EDDY parameter file: {args.params}: {exc}')
 
-
     # BVECS
     bvecs = np.array([])
     if args.bvecs:
         try:
-            bvecs = np.genfromtxt(args.bvecs, dtype=float)
+            bvecs = np.genfromtxt(_relfile(args, args.bvecs), dtype=float)
         except Exception as exc:
             raise ValueError(f'Failed to read BVECS parameter file: {args.bvecs}: {exc}')
 
@@ -135,7 +158,7 @@ def main():
     field = None
     if args.field:
         field = _imgfile(args.field)
-       
+
     # Slspec
     slspec = None
     if args.slspec:
@@ -159,9 +182,9 @@ def main():
         raise ValueError(f'Number of eddy indices not consistent with EDDY corrected file {eddyfile}')
 
     # Load binary brain mask file
-    if mask:
-        mask_vol = nib.load(mask)   
-        if eddy_epi.shape[0:3] != mask_vol.shape:
+    if mask_file:
+        mask = nib.load(mask_file).get_fdata()
+        if eddy_epi.shape[0:3] != mask.shape:
             raise ValueError('Mask and data dimensions are not consistent')
 
     #=========================================================================================
@@ -176,26 +199,25 @@ def main():
             protocol[c_p, c_b] = ((rounded_bvals==b) & (eddyIdxs==p)).sum()
 
     data = {
-        'subjid' : eddyfile,
-        'file_mask': mask,
+        #'subjid' : eddyfile,
+        #'file_mask': mask_file,
         'num_dw_vols': int((bvals > 100).sum()),
         'num_b0_vols': int((bvals <= 100).sum()),
         'protocol':protocol.flatten(),
         'num_pe_dirs': int(np.size(unique_pedirs)),
         'num_shells': int((unique_bvals > 0).sum()),
-        'bvals' : bvals,
-        'rounded_bvals' : rounded_bvals,
-        'bvecs' : bvecs,
-        'bvecs' : bvecs,
+        #'bvals' : bvals,
+        #'rounded_bvals' : rounded_bvals,
+        #'bvecs' : bvecs,
         'unique_bvals' : unique_bvals[unique_bvals > 100],
-        'bvals_dirs' : counts[unique_bvals > 100],
-        'eddy_idxs' : eddyIdxs,
+        #'bvals_dirs' : counts[unique_bvals > 100],
+        #'eddy_idxs' : eddyIdxs,
         'eddy_para' : eddyPara,
         'unique_pedirs' : unique_pedirs,
-        'counts_pedirs' : counts_pedirs,
-        'shape' : eddy_epi.shape,
+        #'counts_pedirs' : counts_pedirs,
+        #'shape' : eddy_epi.shape,
         'vox_sizes' : np.array(eddy_epi.header.get_zooms())[:3],
-        'file_epi' : eddy_epi,
+        #'file_epi' : eddy_epi,
     }
 
     #=========================================================================================
@@ -208,7 +230,7 @@ def main():
     olMapFile = _eddyfile(args, '.eddy_outlier_map')              # Text file containing binary matrix [no. volumes X no. slices]
     cnrFile = _eddyfile(args, '.eddy_cnr_maps.nii.gz')            # 4D file containing the eddy-based b-CNR maps (std(pred)/std(res))
     rssFile = _eddyfile(args, '.eddy_residuals.nii.gz')           # 4D file containing the eddy-based residuals
-    
+
     if os.path.isfile(motionFile):
         LOG.debug('RMS movement estimates file detected')
         motion = np.genfromtxt(motionFile,dtype=float)
@@ -220,6 +242,8 @@ def main():
     if os.path.isfile(paramsFile):
         LOG.debug('Eddy parameters file detected')
         params = np.genfromtxt(paramsFile, dtype=float)
+        qc_data["motion_v2v_trans"] = params[:,0:3]
+        qc_data["motion_v2v_rot"] = np.rad2deg(params[:,3:6])
         qc_data['motion_v2v_trans_mean'] = np.mean(params[:,0:3], axis=0)
         qc_data['motion_v2v_rot_mean'] = np.mean(np.rad2deg(params[:,3:6]), axis=0)
         qc_data['motion_ec_lin_std'] = np.std(params[:,6:9], axis=0)
@@ -235,20 +259,20 @@ def main():
             if slspec.ndim > 1:
                 ex_check = np.arange(0, n_ex)
             else:
-                ex_check = np.where(np.sum(np.sum(data['file_mask'][:,:,slspec], axis=0), axis=0) > n_vox_thr)
+                ex_check = np.where(np.sum(np.sum(mask[:,:,slspec], axis=0), axis=0) > n_vox_thr)
         else:
             LOG.warn('slspec file not provided. Assuming one excitation per slice.')
-            n_ex = data['shape'][2]
+            n_ex = eddy_epi.shape[2]
             ex_check = np.arange(0, n_ex)
 
-        if n_ex * data['bvals'].size != qc_data['s2v_params'].shape[0]:
-            print('Warning: number of s2v parameters does not match the expected one! Skipping s2v QC...')
+        if n_ex * bvals.size != qc_data['s2v_params'].shape[0]:
+            LOG.warn('Number of s2v parameters does not match the expected one! Skipping s2v QC...')
             qc_data.pop('motion_s2v_trans')
             qc_data.pop('motion_s2v_rot')
         else:
-            qc_data['motion_s2v_trans_var'] = np.zeros((data['bvals'].size, 3))
-            qc_data['motion_s2v_rot_var'] = np.zeros((data['bvals'].size, 3))
-            for i in np.arange(0, data['bvals'].size):
+            qc_data['motion_s2v_trans_var'] = np.zeros((bvals.size, 3))
+            qc_data['motion_s2v_rot_var'] = np.zeros((bvals.size, 3))
+            for i in np.arange(0, bvals.size):
                 tmp = s2v_params[i*n_ex:(i+1)*n_ex]
                 qc_data['motion_s2v_trans_var'][i] = np.var(qc_data['motion_s2v_trans'][i*n_ex:(i+1)*n_ex][ex_check], ddof=1, axis=0)
                 qc_data['motion_s2v_rot_var'][i] = np.var(qc_data['motion_s2v_rot'][i*n_ex:(i+1)*n_ex][ex_check], ddof=1, axis=0)
@@ -257,15 +281,16 @@ def main():
             
     if os.path.isfile(olMapFile):
         LOG.debug('Outliers outuput files detected')
-        ol_map = np.genfromtxt(olMapFile,dtype=None, delimiter=" ", skip_header=1)
+        ol_map = np.genfromtxt(olMapFile, dtype=None, delimiter=" ", skip_header=1)
         ol_map_std = np.genfromtxt(_eddyfile(args, '.eddy_outlier_n_stdev_map'), dtype=float, delimiter=" ", skip_header=1)
-        qc_data['outliers_tot'] = 100*np.count_nonzero(ol_map)/(data['num_dw_vols']*data['shape'][2])
+        qc_data['outliers_tot'] = 100*np.count_nonzero(ol_map)/(data['num_dw_vols']*eddy_epi.shape[2])
         qc_data['outliers_tot_bval'] = np.full(data['unique_bvals'].size, -1.0)
         qc_data['outliers_tot_pe'] = np.full(data['num_pe_dirs'], -1.0)
-        for i in range(0, data['unique_bvals'].size):
-            qc_data['outliers_tot_bval'][i] = 100*np.count_nonzero(ol_map[data['bvals'] == data['unique_bvals'][i], :])/(data['bvals_dirs'][i]*data['shape'][2])
+        for i, bval in enumerate(data['unique_bvals']):
+            LOG.debug("unique bval: %i" % bval)
+            qc_data['outliers_tot_bval'][i] = 100*np.count_nonzero(ol_map[rounded_bvals == bval, :])/(counts[unique_bvals > 100][i]*eddy_epi.shape[2])
         for i in range(0, data['num_pe_dirs']):
-            qc_data['outliers_tot_pe'][i] = 100*np.count_nonzero(ol_map[data['eddy_idxs'] == data['unique_pedirs'][i],:])/(data['counts_pedirs'][i]*data['shape'][2])
+            qc_data['outliers_tot_pe'][i] = 100*np.count_nonzero(ol_map[eddyIdxs == data['unique_pedirs'][i],:])/(counts_pedirs[i]*eddy_epi.shape[2])
         
     if os.path.isfile(cnrFile):
         LOG.debug('CNR output files detected')
@@ -273,13 +298,15 @@ def main():
         cnr = cnrImg.get_data()
         if np.count_nonzero(np.isnan(cnr)):
             LOG.warn("NaNs detected in the CNR maps")
-        finiteMask = (data['file_mask'] != 0) * np.isfinite(cnr[:,:,:,0])
+        LOG.debug("mask: %i", np.count_nonzero(mask))
+        finiteMask = (mask != 0) * np.isfinite(cnr[:,:,:,0])
+        LOG.debug("Finite mask: %i", np.count_nonzero(finiteMask))
         qc_data['cnr_mean_bval'] = np.full(1+data['unique_bvals'].size, -1.0)
         qc_data['cnr_std_bval'] = np.full(1+data['unique_bvals'].size, -1.0)
         qc_data['cnr_mean_bval'][0] = round(np.nanmean(cnr[:,:,:,0][finiteMask]), 2)
         qc_data['cnr_std_bval'][0] = round(np.nanstd(cnr[:,:,:,0][finiteMask]), 2)
         for i in range(0,data['unique_bvals'].size):
-            finiteMask = (data['file_mask'] != 0) * np.isfinite(cnr[:,:,:,i+1])
+            finiteMask = (mask != 0) * np.isfinite(cnr[:,:,:,i+1])
             qc_data['cnr_mean_bval'][i+1] = round(np.nanmean(cnr[:,:,:,i+1][finiteMask]), 2)
             qc_data['cnr_std_bval'][i+1] = round(np.nanstd(cnr[:,:,:,i+1][finiteMask]), 2)
 
@@ -287,9 +314,9 @@ def main():
         LOG.debug('Eddy residuals file detected')
         rssImg = nib.load(rssFile)
         rss = rssImg.get_data()
-        qc_data['res_mean'] = np.full(data['bvals'].size, -1.0),
-        for i in range(0,data['bvals'].size):
-            qc_data['res_mean'][i] = np.mean(np.power(rss[:,:,:,i][data['file_mask'] != 0.0], 2))
+        qc_data['res_mean'] = np.full(bvals.size, -1.0),
+        for i in range(0,bvals.size):
+            qc_data['res_mean'][i] = np.mean(np.power(rss[:,:,:,i][mask != 0.0], 2))
         rssImg.uncache()
         del rss
         # FIXME
@@ -302,7 +329,7 @@ def main():
         fieldImg = nib.load(field)
         fieldMap = fieldImg.get_data()
         dispField = fieldMap*eddyPara[3]
-        qc_data['field_disp_std'] = np.std(dispField[data['file_mask'] != 0.0])
+        qc_data['field_disp_std'] = np.std(dispField[mask != 0.0])
         fieldImg.uncache()
         del fieldMap
 
@@ -312,7 +339,6 @@ def main():
     #    raise ValueError('Motion estimates and/or eddy estimated parameters are missing!')
 
     full_data = {}
-    data.pop("file_epi")
     for k, v in data.items():
         if isinstance(v, np.ndarray):
             full_data['data_' + k] = v.tolist()
