@@ -150,8 +150,8 @@ class Report():
         Generate tables for subject report including RAG flagging of outliers
         """
         table_idx, cur_table_title, table_content, table_colours = 0, None, [], []
-        for plots in self.report_def:
-            for plot in plots:
+        for group in self.report_def:
+            for plot in group:
                 # Allow table layout constraints to be overridden at any point
                 self.table_rows_per_page = plot.get("table_rows_per_page", self.table_rows_per_page)
                 self.table_columns = plot.get("table_columns", self.table_columns)
@@ -290,11 +290,17 @@ class Report():
         if not data_item:
             LOG.warn(f"Plot variable not defined for line plot: {plot}")
             return False
+        LOG.debug(f"Line plot: {plot}")
         group_values, subject_values, var_names = self._get_data(data_item)
+        LOG.debug(f"Values: {subject_values}")
         if subject_values is None or len(subject_values) == 0:
             # Skip plot if data could not be found
             return False
-        ax.plot(subject_values)
+        ax.plot(subject_values, linewidth=2)
+        ax.set_xbound(1, subject_values.shape[0])
+        legend = plot.pop("legend", None)
+        if legend is not None:
+            ax.legend(legend, loc='best', frameon=True, framealpha=0.5)
         return True
 
     def _image_plot(self, ax, plot):
@@ -336,11 +342,12 @@ class Report():
             return False
 
         group_values, subject_values, var_names = self._get_data(data_item)
-        if group_values is None or len(group_values) == 0:
+        if group_values is None or group_values.size == 0:
             # Skip plot if data could not be found
             return False
 
         # Plot the data
+        LOG.debug(f"Distribution plot: {data_item}, {plot}")
         seaborn.violinplot(data=group_values, scale='width', width=0.5, palette='Set3', linewidth=1, inner='point', ax=ax)
         seaborn.despine(left=True, bottom=True, ax=ax)
         ax.get_yaxis().get_major_formatter().set_useOffset(False)
