@@ -96,6 +96,7 @@ kwargs = {
     'entry_points' : {
         'console_scripts' : [
             "squat=squat.main:main",
+            "squat_eddy=squat.eddy.extract:main",
         ],
     },
     'classifiers' : [
