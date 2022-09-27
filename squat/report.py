@@ -16,6 +16,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 import seaborn
 seaborn.set()
+import pandas as pd
 
 import fsl.wrappers as fsl
 
@@ -338,13 +339,14 @@ class Report():
         with tempfile.TemporaryDirectory() as tempdir:
             if ".nii" in img:
                 slice_img_fname = os.path.join(tempdir, "slice.png")
-                fsl.slicer(img, i="0 1", a=slice_img_fname)
+                vmin, vmax = plot.pop("vmin", 0), plot.pop("vmax", 1)
+                fsl.slicer(img, i=f"{vmin} {vmax}", a=slice_img_fname)
             else:
                 slice_img_fname = img
 
             slice_img = matplotlib.image.imread(slice_img_fname)
-            ax.imshow(slice_img.data, interpolation='none')
-            #plt.colorbar(im, ax=ax)
+            im = ax.imshow(slice_img.data, interpolation='none', cmap="gray")
+            plt.colorbar(im, ax=ax)
             ax.grid(False)
             ax.axis('off')
             #ax.set_title(title)
@@ -364,9 +366,10 @@ class Report():
             # Skip plot if data could not be found
             return False
 
-        # Plot the data
-        LOG.debug(f"Distribution plot: {data_item}, {plot}")
-        seaborn.violinplot(data=group_values, scale='width', width=0.5, palette='Set3', linewidth=1, inner='point', ax=ax)
+        # Plot the data - using a data frame avoids misinterpreting multi-value
+        # plots when there is only one subject
+        LOG.debug(f"Distribution plot: {data_item}, {plot} {group_values.shape}")
+        seaborn.violinplot(data=pd.DataFrame(group_values), scale='width', width=0.5, palette='Set3', linewidth=1, inner='point', ax=ax)
         seaborn.despine(left=True, bottom=True, ax=ax)
         ax.get_yaxis().get_major_formatter().set_useOffset(False)
         #ax.ticklabel_format(style='plain')
