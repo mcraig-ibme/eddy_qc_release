@@ -263,6 +263,8 @@ class Report():
                 if plotted:
                     current_col += colspan
                     group_any_plotted = True
+                else:
+                    plt.delaxes(ax)
             if group_any_plotted:
                 current_row += 1
 
@@ -364,6 +366,7 @@ class Report():
         group_values, subject_values, var_names = self._get_data(data_item)
         if group_values is None or group_values.size == 0:
             # Skip plot if data could not be found
+            LOG.warn(f"Data not found, skipping distribution plot: {plot}")
             return False
 
         # Plot the data - using a data frame avoids misinterpreting multi-value
