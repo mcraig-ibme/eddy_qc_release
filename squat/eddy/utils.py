@@ -11,11 +11,10 @@ import logging
 
 LOG = logging.getLogger(__name__)
 
-def round_bvals(bvals):
+def round_bvals_median(bvals, tol=100):
     """
     Round bvals to the median value for each identified shell
     """
-    tol = 100   # Tolerance
     selected = np.zeros(bvals.size, dtype='bool')
     same_b = abs(bvals[:, None] - bvals[None, :]) <= tol
     res_b = bvals.copy()
@@ -34,3 +33,9 @@ def round_bvals(bvals):
         selected[use] = True
     res_b[res_b <= tol] = 0
     return res_b
+
+def round_bvals(bvals):
+    """
+    Round bvals to nearest 100
+    """
+    return np.round(bvals, decimals=-2)
