@@ -255,6 +255,7 @@ def main():
         params = np.genfromtxt(paramsFile, dtype=float)
         qc_data["motion_v2v_trans"] = params[:,0:3]
         qc_data["motion_v2v_rot"] = np.rad2deg(params[:,3:6])
+        qc_data['motion_ec_lin'] = params[:,6:9]
         qc_data['motion_v2v_trans_mean'] = np.mean(params[:,0:3], axis=0)
         qc_data['motion_v2v_rot_mean'] = np.mean(np.rad2deg(params[:,3:6]), axis=0)
         qc_data['motion_ec_lin_std'] = np.std(params[:,6:9], axis=0)
