@@ -310,17 +310,23 @@ def main():
         cnr = cnrImg.get_data()
         if np.count_nonzero(np.isnan(cnr)):
             LOG.warn("NaNs detected in the CNR maps")
-        LOG.debug("mask: %i", np.count_nonzero(mask))
         finiteMask = (mask != 0) * np.isfinite(cnr[:,:,:,0])
-        LOG.debug("Finite mask: %i", np.count_nonzero(finiteMask))
-        qc_data['cnr_mean_bval'] = np.full(1+data['unique_bvals'].size, -1.0)
-        qc_data['cnr_std_bval'] = np.full(1+data['unique_bvals'].size, -1.0)
-        qc_data['cnr_mean_bval'][0] = round(np.nanmean(cnr[:,:,:,0][finiteMask]), 2)
-        qc_data['cnr_std_bval'][0] = round(np.nanstd(cnr[:,:,:,0][finiteMask]), 2)
-        for i in range(0,data['unique_bvals'].size):
+        qc_data['snr_mean'] = float(np.nanmean(cnr[:,:,:,0][finiteMask]))
+        qc_data['snr_std'] = float(np.nanstd(cnr[:,:,:,0][finiteMask]))
+        qc_data['cnr_mean_bval'] = np.full(data['unique_bvals'].size, -1.0, dtype=float)
+        qc_data['cnr_std_bval'] = np.full(data['unique_bvals'].size, -1.0, dtype=float)
+        for i in range(data['unique_bvals'].size):
             finiteMask = (mask != 0) * np.isfinite(cnr[:,:,:,i+1])
-            qc_data['cnr_mean_bval'][i+1] = round(np.nanmean(cnr[:,:,:,i+1][finiteMask]), 2)
-            qc_data['cnr_std_bval'][i+1] = round(np.nanstd(cnr[:,:,:,i+1][finiteMask]), 2)
+            qc_data['cnr_mean_bval'][i] = np.nanmean(cnr[:,:,:,i+1][finiteMask])
+            qc_data['cnr_std_bval'][i] = np.nanstd(cnr[:,:,:,i+1][finiteMask])
+
+        # Output CNR/SNR slice maps
+        for idx, bval in enumerate(unique_bvals):
+            bval_vol = cnr[..., idx]
+            nii = nib.Nifti1Image(bval_vol, cnrImg.affine, cnrImg.header)
+            #nii.save(vol, data['qc_path'] + f"/cnr_b{bval}.nii.gz")
+            i_max = np.round(np.mean(bval_vol[mask > 0]) + 3*np.std(bval_vol[mask > 0]))
+            fsl.slicer(nii, a=os.path.join(args.output, f"cnr_b{bval}.png"), i=(0, i_max))
 
     if os.path.isfile(rssFile):
         LOG.debug('Eddy residuals file detected')
