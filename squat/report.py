@@ -280,6 +280,13 @@ class Report():
             plotted = self._image_plot(ax, plot)
         elif plot_type == "line":
             plotted = self._line_plot(ax, plot)
+        elif plot_type == "bar":
+            plotted = self._bar_plot(ax, plot)
+        elif plot_type == "heatmap":
+            plotted = self._heatmap(ax, plot)
+        else:
+            LOG.warn(f"Unknown plot type: {plot_type}")
+            plotted = False
 
         # Set other properties defined for the plot. Note that some properties can take their values
         # from other data in the group JSON file
@@ -322,6 +329,53 @@ class Report():
         legend = plot.pop("legend", None)
         if legend is not None:
             ax.legend(legend, loc='best', frameon=True, framealpha=0.5)
+        return True
+
+    def _bar_plot(self, ax, plot):
+        """
+        Bar plot for subject reports only
+        """
+        if self.subject_data is None:
+            return False
+        data_item = plot.pop("var", None)
+        if not data_item:
+            LOG.warn(f"Plot variable not defined for bar plot: {plot}")
+            return False
+        LOG.debug(f"Bar plot: {plot}")
+        group_values, subject_values, var_names = self._get_data(data_item)
+        if subject_values is None or len(subject_values) == 0:
+            # Skip plot if data could not be found
+            return False
+        #seaborn.barplot(x=np.arange(1, 1+data['unique_bvals'].size), y=eddy['b_ol'], ax=ax2_00)
+        ax.bar(range(subject_values.shape[0]), subject_values, align='center')
+        ax.set_xbound(-0.5, subject_values.shape[0]-0.5)
+        ax.set_xticks(range(subject_values.shape[0]))
+        #legend = plot.pop("legend", None)
+        #if legend is not None:
+        #    ax.legend(legend, loc='best', frameon=True, framealpha=0.5)
+        return True
+
+    def _heatmap(self, ax, plot):
+        """
+        Heatmap for subject reports only
+        """
+        if self.subject_data is None:
+            return False
+        data_item = plot.pop("var", None)
+        if not data_item:
+            LOG.warn(f"Plot variable not defined for heatmap: {plot}")
+            return False
+        LOG.debug(f"Heatmap: {plot}")
+        group_values, subject_values, var_names = self._get_data(data_item)
+        if subject_values is None or len(subject_values) == 0:
+            # Skip plot if data could not be found
+            return False
+        if subject_values.ndim != 2:
+            LOG.warn(f"Heatmap requires 2D data: {plot}")
+            return False
+
+        seaborn.heatmap(np.transpose(subject_values), ax=ax, xticklabels=int(subject_values.shape[0]/10), yticklabels=10, cmap='RdBu_r',
+                        cbar_kws={"orientation": "vertical", "label": plot.pop("cbarlabel", "")}, vmin=plot.pop("vmin", None), vmax=plot.pop("vmax", None))
         return True
 
     def _image_plot(self, ax, plot):
