@@ -78,8 +78,7 @@ class Report():
             ret[var] = np.mean(values), np.std(values) + 1e-10
         return ret
 
-    def _get_outlier_colour(self, value, var_name):
-        mean, std = self.comparison_dists[var_name]
+    def _get_outlier_colour(self, value, mean, std):
         #mean, std = np.mean(comparison_values), np.std(comparison_values) + 1e-10
         value_sigma = np.abs((value-mean)/std)
         for sigma, colour in self.outlier_colours:
@@ -138,15 +137,15 @@ class Report():
         ax.axis('off')
         ax.axis('tight')
         ax.set_title(table_title, fontsize=12, fontweight='bold',loc='left')
-        c1len = max([len(str(c[0])) for c in table_content])
-        c2len = max([len(str(c[1])) for c in table_content])
-        col_prop = c1len / (c1len+c2len)
+        clens = [max([len(str(row[col])) for row in table_content]) for col in range(len(table_content[0]))]
+        col_prop = [clen / sum(clens) for clen in clens]
         tb = ax.table(
+            colLabels=["Variable", "Value", "Mean", "STD"],
             cellText=table_content, 
             cellColours=table_colours,
             loc='upper center',
             cellLoc='left',
-            colWidths=[col_prop, 1-col_prop],
+            colWidths=col_prop,
         )
         tb.auto_set_font_size(True)
         tb.scale(1, 2)
@@ -212,8 +211,9 @@ class Report():
                         row_label += ": %s" % row_labels[idx]
                     if "ylabel" in plot:
                         row_label += " (%s)" % plot["ylabel"]
-                    table_content.append([row_label, '%1.2f' % value])
-                    table_colours.append([NOCOLOUR, self._get_outlier_colour(value, var_names[idx])])
+                    mean, std = self.comparison_dists[var_names[idx]]
+                    table_content.append([row_label, '%1.2f' % value, '%1.2f' % mean, '%1.2f' % std])
+                    table_colours.append([NOCOLOUR, self._get_outlier_colour(value, mean, std), NOCOLOUR, NOCOLOUR])
 
         # Show last table
         if cur_table_title is not None and len(table_content) > 0:
@@ -339,6 +339,7 @@ class Report():
             return False
 
         with tempfile.TemporaryDirectory() as tempdir:
+            vmax, vmin = None, None
             if ".nii" in img:
                 slice_img_fname = os.path.join(tempdir, "slice.png")
                 vmin, vmax = plot.pop("vmin", 0), plot.pop("vmax", 1)
@@ -348,10 +349,10 @@ class Report():
 
             slice_img = matplotlib.image.imread(slice_img_fname)
             im = ax.imshow(slice_img.data, interpolation='none', cmap="gray")
-            plt.colorbar(im, ax=ax)
+            if vmax is not None:
+                plt.colorbar(im, ax=ax)
             ax.grid(False)
             ax.axis('off')
-            #ax.set_title(title)
         return True
 
     def _distribution_plot(self, ax, plot):
