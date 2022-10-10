@@ -296,6 +296,8 @@ def main():
         ol_map = np.genfromtxt(olMapFile, dtype=None, delimiter=" ", skip_header=1)
         ol_map_std = np.genfromtxt(_eddyfile(args, '.eddy_outlier_n_stdev_map'), dtype=float, delimiter=" ", skip_header=1)
         qc_data['outliers_tot'] = 100*np.count_nonzero(ol_map)/(data['num_dw_vols']*eddy_epi.shape[2])
+        qc_data['outliers_tot_vol'] = 100*np.sum(ol_map, axis=1)/ol_map.shape[1]
+        qc_data['outliers_slice_vol'] = ol_map_std
         qc_data['outliers_tot_bval'] = np.full(data['unique_bvals'].size, -1.0)
         qc_data['outliers_tot_pe'] = np.full(data['num_pe_dirs'], -1.0)
         for i, bval in enumerate(data['unique_bvals']):
