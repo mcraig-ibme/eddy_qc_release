@@ -118,10 +118,13 @@ class Report():
                 LOG.debug(f"Subject value shape: {subject_values[-1].shape}")
             names += [var] * group_values[-1].shape[1]
 
-        group_values = np.atleast_2d(np.squeeze(np.stack(group_values, axis=-1)))
+        # Each group set has shape [NSUBJS, [NT], NVALS] so combine on last dim to combine values
+        group_values = np.concatenate(group_values, axis=-1)
         LOG.debug(f"Overall group value shape: {group_values.shape}")
+
         if self.subject_data is not None:
-            subject_values = np.atleast_1d(np.squeeze(np.stack(subject_values, axis=-1)))
+            # Each subject value set has shape [[NT], NVALS] so again combine on last dim to combine values
+            subject_values = np.concatenate(subject_values, axis=-1)
             LOG.debug(f"Overall subject value shape: {subject_values.shape}")
         else:
             subject_values = None
