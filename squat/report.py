@@ -113,7 +113,7 @@ class Report():
             LOG.debug(f"get_data: {var}")
             group_values.append(self.group_data.get_data(var))
             LOG.debug(f"Group value shape: {group_values[-1].shape}")
-            if self.subject_data is not None:
+            if group_values[-1].size > 0 and self.subject_data is not None:
                 subject_values.append(self.subject_data.get_data(var))
                 LOG.debug(f"Subject value shape: {subject_values[-1].shape}")
             names += [var] * group_values[-1].shape[1]
@@ -122,12 +122,12 @@ class Report():
         group_values = np.concatenate(group_values, axis=-1)
         LOG.debug(f"Overall group value shape: {group_values.shape}")
 
-        if self.subject_data is not None:
+        if group_values.size > 0 and self.subject_data is not None:
             # Each subject value set has shape [[NT], NVALS] so again combine on last dim to combine values
             subject_values = np.concatenate(subject_values, axis=-1)
             LOG.debug(f"Overall subject value shape: {subject_values.shape}")
         else:
-            subject_values = None
+            subject_values = np.array([])
 
         return group_values, subject_values, names
 
