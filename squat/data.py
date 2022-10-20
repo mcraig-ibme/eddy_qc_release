@@ -13,14 +13,6 @@ import numpy as np
 
 LOG = logging.getLogger(__name__)
 
-def _check_consistent(subjid, subject_fields, group_fields):
-    not_in_group = [k for k in subject_fields if k not in group_fields]
-    not_in_subject = [k for k in group_fields if k not in subject_fields]
-    if not_in_group:
-        LOG.warn(f'Inconsistency in QC fields for subject {subjid}: {not_in_group} not found in group data')
-    if not_in_subject:
-        LOG.warn(f'Inconsistency in QC fields for subject {subjid}: {not_in_subject} not found in subject data')
-
 def read_json(fname, desc):
     try:
         with open(fname, 'r') as f:
@@ -124,37 +116,57 @@ class GroupData(dict):
 
         :param subject_datas: Sequence of single subject QC data dictionaries
         """
-        self.data_fields, self.qc_fields = [], []
+        # Get QC fields - these may not match for all subjects
+        self.qc_fields = set()
         for idx, subject_data in enumerate(subject_datas):
-            # Check QC and data fields match for all subjects
-            if idx == 0:
-                self.qc_fields = subject_data.qc_fields
-                self.data_fields = subject_data.data_fields
-                group_qc_data = {k : [] for k in self.qc_fields}
-            else:
-                _check_consistent(subject_data.subjid, subject_data.qc_fields, self.qc_fields)
-                _check_consistent(subject_data.subjid, subject_data.data_fields, self.data_fields)
+            self.qc_fields.update(subject_data.qc_fields)
 
-            # Collect QC data from subject and add it to the group list
+        # Collect QC data from subject and add it to the group list. If a QC field is missing
+        # for a subject use None
+        for idx, subject_data in enumerate(subject_datas):
             for qc_field in self.qc_fields:
-                value = subject_data.get("qc_" + qc_field, None)
-                if value is None:
-                    # Add the correct number of NaN values
-                    value = [math.nan] * len(group_qc_data[qc_field][-1])
-                elif not isinstance(value, list):
+                key = f"qc_{qc_field}"
+                if key not in self:
+                    self[key] = []
+                value = subject_data.get(key, None)
+                if value is not None and not isinstance(value, list):
                     value = [value]
-                group_qc_data[qc_field].append(value)
+                self[key].append(value)
 
-        # Update dictionary to include group data and QC fields  
+        # Get data fields which should match for all subjects
+        self.data_fields = set()
+        for idx, subject_data in enumerate(subject_datas):
+            if idx == 0:
+                self.data_fields.update(subject_data.data_fields)
+                self.update(subject_data.data_fields)
+            else:
+                for k in subject_data.data_fields:
+                    v = subject_data[k]
+                    if k not in self:
+                        LOG.warn(f"Data field {k} found for subject {subject_data.subjid} but not found in all subjects")
+                    elif self[k] != v:
+                        LOG.warn(f"Inconsistent value for data field {k} for subject {subject_data.subjid}: {self[k]} vs {v}")
+                not_in_subject = [k for k in self.data_fields if k not in subject_data.data_fields]
+                if not_in_subject:
+                        LOG.warn(f"Data fields {not_in_subject} not found for subject {subject_data.subjid}")
+
+        # Add number of subjects
         self.update({
             'data_num_subjects' : len(subject_datas),
             #'data_protocol' : group_qc_data['data'],
         })
 
-        # FIXME assuming data fields match for all subjects and can take from last subject
-        # - should check for this
-        for data_field in self.data_fields:
-            self[data_field] = subject_data[data_field]
-
+        # Bit messy. We have added None for variables that are missing from a subject, we need to replace this
+        # with the correct number of NaN values
         for qc_field in self.qc_fields:
-            self[f"qc_{qc_field}"] = group_qc_data[qc_field]
+            key = f"qc_{qc_field}"
+            subject_values = self[key]
+            for idx in range(len(subject_values)):
+                if subject_values[idx] is not None:
+                    num_values = len(subject_values[idx])
+                    break
+            for idx in range(len(subject_values)):
+                if subject_values[idx] is None:
+                    self[key][idx] = [math.nan] * num_values
+
+        print(self)
