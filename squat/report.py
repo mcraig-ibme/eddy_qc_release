@@ -75,7 +75,7 @@ class Report():
         ret = {}
         for var in self.group_data.qc_fields:
             values = self.group_data.get_data(var)
-            ret[var] = np.mean(values), np.std(values) + 1e-10
+            ret[var] = np.nanmean(values), np.nanstd(values) + 1e-10
         return ret
 
     def _get_outlier_colour(self, value, mean, std):
