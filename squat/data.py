@@ -77,7 +77,7 @@ class SubjectData(dict):
         try:
             return np.atleast_1d(self['qc_' + var])
         except KeyError:
-            LOG.warn(f"Missing variables for subject {self.subjid} - looking for {var}")
+            LOG.debug(f"Missing variables for subject {self.subjid} - looking for {var}")
             return np.atleast_1d([])
 
 class GroupData(dict):
@@ -100,7 +100,7 @@ class GroupData(dict):
         try:
             return np.atleast_2d(self['qc_' + var])
         except KeyError:
-            LOG.warn(f"Missing variables in group data - looking for {var}")
+            LOG.debug(f"Missing variables in group data - looking for {var}")
             return np.atleast_2d([])
 
     def write(self, fname):
@@ -138,7 +138,8 @@ class GroupData(dict):
         for idx, subject_data in enumerate(subject_datas):
             if idx == 0:
                 self.data_fields.update(subject_data.data_fields)
-                self.update(subject_data.data_fields)
+                for k in subject_data.data_fields:
+                    self[k] = subject_data[k]
             else:
                 for k in subject_data.data_fields:
                     v = subject_data[k]
@@ -169,4 +170,3 @@ class GroupData(dict):
                 if subject_values[idx] is None:
                     self[key][idx] = [math.nan] * num_values
 
-        print(self)
