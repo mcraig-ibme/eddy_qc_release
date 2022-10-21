@@ -204,7 +204,7 @@ class Report():
                             LOG.warn(f"Row labels specified to come from {row_labels} but this data item was not found")
                             row_labels = None
 
-                    if row_labels is not None and len(row_labels) != len(data_values):
+                    if len(data_values) > 0 and row_labels is not None and len(row_labels) != len(data_values):
                         LOG.warn(f"Number of row labels {row_labels} does not match number of data items {len(data_values)}")
                         row_labels = None
 
