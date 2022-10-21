@@ -234,14 +234,8 @@ class Report():
         num_cols = max([len(group) for group in self.report_def])
 
         current_row = 0
+        self._new_page()
         for group in self.report_def:
-            # Check if we need to start a new page
-            if current_row % self.plot_rows_per_page == 0:
-                if current_row > 0:
-                    # Format and save previous page
-                    self._save_page(pdf)
-                self._new_page()
-
             # Find out how many columns the defined plots will occupy
             group_num_cols = sum([plot.get("colspan", 1) for plot in group])
             current_col = 0
@@ -268,11 +262,13 @@ class Report():
                     group_any_plotted = True
                 else:
                     plt.delaxes(ax)
+
             if group_any_plotted:
                 current_row += 1
-
-        # Save last page
-        self._save_page(pdf)
+                # Check if we need to start a new page
+                if current_row % self.plot_rows_per_page == 0:
+                    self._save_page(pdf)
+                    self._new_page()
 
     def _do_plot(self, ax, plot):
         # Get the data variable or image to be plotted
