@@ -75,7 +75,7 @@ class Report():
         ret = {}
         for var in self.group_data.qc_fields:
             values = self.group_data.get_data(var)
-            ret[var] = np.mean(values), np.std(values) + 1e-10
+            ret[var] = np.nanmean(values), np.nanstd(values) + 1e-10
         return ret
 
     def _get_outlier_colour(self, value, mean, std):
@@ -113,7 +113,7 @@ class Report():
             LOG.debug(f"get_data: {var}")
             group_values.append(self.group_data.get_data(var))
             LOG.debug(f"Group value shape: {group_values[-1].shape}")
-            if self.subject_data is not None:
+            if group_values[-1].size > 0 and self.subject_data is not None:
                 subject_values.append(self.subject_data.get_data(var))
                 LOG.debug(f"Subject value shape: {subject_values[-1].shape}")
             names += [var] * group_values[-1].shape[1]
@@ -122,12 +122,12 @@ class Report():
         group_values = np.concatenate(group_values, axis=-1)
         LOG.debug(f"Overall group value shape: {group_values.shape}")
 
-        if self.subject_data is not None:
+        if group_values.size > 0 and self.subject_data is not None:
             # Each subject value set has shape [[NT], NVALS] so again combine on last dim to combine values
             subject_values = np.concatenate(subject_values, axis=-1)
             LOG.debug(f"Overall subject value shape: {subject_values.shape}")
         else:
-            subject_values = None
+            subject_values = np.array([])
 
         return group_values, subject_values, names
 
@@ -204,7 +204,7 @@ class Report():
                             LOG.warn(f"Row labels specified to come from {row_labels} but this data item was not found")
                             row_labels = None
 
-                    if row_labels is not None and len(row_labels) != len(data_values):
+                    if len(data_values) > 0 and row_labels is not None and len(row_labels) != len(data_values):
                         LOG.warn(f"Number of row labels {row_labels} does not match number of data items {len(data_values)}")
                         row_labels = None
 
@@ -234,14 +234,8 @@ class Report():
         num_cols = max([len(group) for group in self.report_def])
 
         current_row = 0
+        self._new_page()
         for group in self.report_def:
-            # Check if we need to start a new page
-            if current_row % self.plot_rows_per_page == 0:
-                if current_row > 0:
-                    # Format and save previous page
-                    self._save_page(pdf)
-                self._new_page()
-
             # Find out how many columns the defined plots will occupy
             group_num_cols = sum([plot.get("colspan", 1) for plot in group])
             current_col = 0
@@ -268,11 +262,13 @@ class Report():
                     group_any_plotted = True
                 else:
                     plt.delaxes(ax)
+
             if group_any_plotted:
                 current_row += 1
-
-        # Save last page
-        self._save_page(pdf)
+                # Check if we need to start a new page
+                if current_row % self.plot_rows_per_page == 0:
+                    self._save_page(pdf)
+                    self._new_page()
 
     def _do_plot(self, ax, plot):
         # Get the data variable or image to be plotted
