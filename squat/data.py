@@ -53,7 +53,7 @@ class SubjectData(dict):
                 self.qc_fields.append(f[3:])
             elif isinstance(self[f], list):
                 try:
-                    self[f] = np.array(self[f], dtype=np.float).tolist()
+                    self[f] = np.array(self[f], dtype=np.float32).tolist()
                     self.qc_fields.append(f[3:])
                 except ValueError:
                     pass # Not numeric data

@@ -33,9 +33,9 @@ def main(pdf, data, eddy):
 
     # Compute average b=0 volume
     # fslpy.select_dwi_vols(data=data['subj_id'], bvals=data['bvals_id'], output=data['qc_path'] + "/avg_b0", b=5, m=True)
-    vol = nib.Nifti1Image(np.mean(data['eddy_epi'].get_data()[..., data['bvals']==0], axis=3), data['eddy_epi'].get_affine(), data['eddy_epi'].header)
+    vol = nib.Nifti1Image(np.mean(data['eddy_epi'].get_fdata()[..., data['bvals']==0], axis=3), data['eddy_epi'].get_affine(), data['eddy_epi'].header)
     nib.save(vol, data['qc_path'] + "/avg_b0.nii.gz")
-    vol = vol.get_data()
+    vol = vol.get_fdata()
     # Maximum intensity definition
     i_max = np.round(np.mean(vol[:,:,:][data['mask'] != 0.0])+3*np.std(vol[:,:,:][data['mask'] != 0.0]))
     fslpy.slicer(data['qc_path'] + "/avg_b0", a=data['qc_path'] + "/avg_b0.png", i=(0, i_max))
